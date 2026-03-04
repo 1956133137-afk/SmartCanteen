@@ -3,16 +3,22 @@ package com.example.smartcanteen.data.remote.model
 import com.google.gson.annotations.SerializedName
 
 /**
- * 工行网关标准响应外层包装
+ * 工行网关标准响应包装
  */
 data class IcbcBaseResponse<T>(
     @SerializedName("response_biz_content")
     val responseBizContent: T?,
-    val sign: String? // 部分接口外层会带有工行网关返回的签名
+    val sign: String?,
+    
+    // 【关键修复】接收网关外层直接抛出的错误码和信息（避免被 response_biz_content 结构吞掉）
+    @SerializedName("return_code")
+    val gatewayReturnCode: Int? = null,
+    @SerializedName("return_msg")
+    val gatewayReturnMsg: String? = null
 )
 
 /**
- * 业务结果基类，包含 return_code 和 return_msg
+ * 业务结果基类
  */
 open class BaseBizContent(
     @SerializedName("return_code")

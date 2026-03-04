@@ -16,7 +16,6 @@ import javax.crypto.spec.SecretKeySpec
 
 /**
  * 签名与加密工具类 - 深度适配工行网关
- * 支持 RSA2 签名与 AES 报文加密
  */
 object SmCryptoUtils {
 
@@ -27,7 +26,7 @@ object SmCryptoUtils {
     }
 
     /**
-     * 生成请求报文的 RSA2 签名
+     * 生成 RSA2 签名 - 强制使用 NO_WRAP 避免换行导致签名失败
      */
     fun signRSA2(content: String, privateKeyString: String): String {
         if (privateKeyString.contains("TEMP_PRIVATE_KEY") || privateKeyString.isBlank()) {
@@ -62,6 +61,7 @@ object SmCryptoUtils {
             signature.initSign(privateKey)
             signature.update(content.toByteArray(Charsets.UTF_8))
 
+            // 【关键】强制 NO_WRAP
             Base64.encodeToString(signature.sign(), Base64.NO_WRAP)
         } catch (e: Exception) {
             Log.e("SmCryptoUtils", "签名生成失败: ${e.message}")
@@ -70,26 +70,23 @@ object SmCryptoUtils {
     }
 
     /**
-     * 工行标准 AES 加密 (AES/CBC/PKCS5Padding, IV为16个0)
-     * @param content 待加密的明文 (JSON)
-     * @param aesKeyBase64 Base64 格式的 AES 密钥
+     * AES 加密 - 强制使用 NO_WRAP
      */
     fun encryptAES(content: String, aesKeyBase64: String): String {
         return try {
             val keyBytes = Base64.decode(aesKeyBase64, Base64.DEFAULT)
             val secretKey = SecretKeySpec(keyBytes, "AES")
-            
-            // 工行规范：IV 为 16 字节的 0
             val iv = IvParameterSpec(ByteArray(16))
             
             val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv)
             
             val encryptedBytes = cipher.doFinal(content.toByteArray(Charsets.UTF_8))
+            // 【关键】强制 NO_WRAP
             Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
         } catch (e: Exception) {
             Log.e("SmCryptoUtils", "AES 加密失败: ${e.message}")
-            content // 失败则返回原内容
+            content
         }
     }
 }

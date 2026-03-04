@@ -8,9 +8,12 @@ import okhttp3.Interceptor
 import okhttp3.Response
 import okio.Buffer
 import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
+/**
+ * 工行网关拦截器 - 深度适配版
+ * 修复了工行特有的: 1. 路径参与加签 2. sign_type参与加签 3. 东八区时间戳
+ */
 class IcbcGatewayInterceptor(
     private val appId: String,
     private val privateKey: String,
@@ -46,36 +49,39 @@ class IcbcGatewayInterceptor(
             encryptType = null
         }
 
-        // 3. 准备所有请求参数
+        // 3. 准备公共参数 (保持强制东八区时间)
         val currentTime = System.currentTimeMillis()
         val msgId = currentTime.toString()
-        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(currentTime))
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA)
+        sdf.timeZone = TimeZone.getTimeZone("GMT+8")
+        val timestamp = sdf.format(Date(currentTime))
         val format = "json"
         val charset = "UTF-8"
         val signType = "RSA2"
 
-        // 4. 【关键修改】将所有参数放入有序 Map (包括 sign_type，排除 sign)
-        val paramsMap = sortedMapOf(
-            "app_id" to appId,
-            "msg_id" to msgId,
-            "format" to format,
-            "charset" to charset,
-            "timestamp" to timestamp,
-            "sign_type" to signType, // 重新加入签名计算
-            "biz_content" to finalBizContent
-        )
-        
+        // 4. 使用 TreeMap 保证绝对按 key 字母升序排序！
+        // 根据工行规范：除 sign 以外的所有参数(包括 sign_type)均需参与加签
+        val paramsMap = java.util.TreeMap<String, String>()
+        paramsMap["app_id"] = appId
+        paramsMap["msg_id"] = msgId
+        paramsMap["format"] = format
+        paramsMap["charset"] = charset
+        paramsMap["timestamp"] = timestamp
+        paramsMap["sign_type"] = signType
+        paramsMap["biz_content"] = finalBizContent
         if (encryptType != null) {
             paramsMap["encrypt_type"] = encryptType
         }
 
-        // 5. 拼接原串
-        val signContent = paramsMap.entries.joinToString("&") { "${it.key}=${it.value}" }
-        Log.d("ICBC_DEBUG", ">>> 最终待加签原串: $signContent")
+        // 5. 【最关键修正】工行要求：加签原串必须以 "URI路径?" 开头
+        val apiPath = originalRequest.url.encodedPath // 获取类似 "/api/icsc/..." 的路径
+        val signContent = apiPath + "?" + paramsMap.entries.joinToString("&") { "${it.key}=${it.value}" }
         
+        Log.d("ICBC_DEBUG", ">>> 最终修正的待加签原串: $signContent")
+
         // 6. 生成签名
         val sign = SmCryptoUtils.signRSA2(signContent, privateKey)
-        Log.d("ICBC_DEBUG", ">>> 最终生成的签名: $sign")
+        Log.d("ICBC_DEBUG", ">>> 生成的签名: $sign")
 
         // 7. 构造最终表单
         val formBodyBuilder = FormBody.Builder()
@@ -84,10 +90,10 @@ class IcbcGatewayInterceptor(
         }
         formBodyBuilder.add("sign", sign)
 
-        val newRequest = originalRequest.newBuilder()
+        val finalRequest = originalRequest.newBuilder()
             .post(formBodyBuilder.build())
             .build()
 
-        return chain.proceed(newRequest)
+        return chain.proceed(finalRequest)
     }
 }
