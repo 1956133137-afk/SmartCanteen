@@ -76,6 +76,9 @@ dependencies {
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)
 
+    // 【新增】加载 libs 目录下的所有本地 jar 包
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

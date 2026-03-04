@@ -14,9 +14,6 @@ import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
-/**
- * 签名与加密工具类 - 深度适配工行网关
- */
 object SmCryptoUtils {
 
     init {
@@ -26,14 +23,9 @@ object SmCryptoUtils {
     }
 
     /**
-     * 生成 RSA2 签名 - 强制使用 NO_WRAP 避免换行导致签名失败
+     * RSA2 签名：强制 NO_WRAP
      */
     fun signRSA2(content: String, privateKeyString: String): String {
-        if (privateKeyString.contains("TEMP_PRIVATE_KEY") || privateKeyString.isBlank()) {
-            Log.e("SmCryptoUtils", "警告：私钥尚未配置！")
-            return ""
-        }
-
         return try {
             val cleanKey = privateKeyString
                 .replace("-----BEGIN PRIVATE KEY-----", "")
@@ -43,10 +35,8 @@ object SmCryptoUtils {
                 .replace("\\s+".toRegex(), "")
 
             val keyBytes = Base64.decode(cleanKey, Base64.DEFAULT)
-            
             val privateKey: PrivateKey = try {
-                val keyFactory = KeyFactory.getInstance("RSA")
-                keyFactory.generatePrivate(PKCS8EncodedKeySpec(keyBytes))
+                KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(keyBytes))
             } catch (e: Exception) {
                 val rsaPrivKey = RSAPrivateKey.getInstance(keyBytes)
                 val rsaSpec = RSAPrivateCrtKeySpec(
@@ -60,32 +50,26 @@ object SmCryptoUtils {
             val signature = Signature.getInstance("SHA256WithRSA")
             signature.initSign(privateKey)
             signature.update(content.toByteArray(Charsets.UTF_8))
-
-            // 【关键】强制 NO_WRAP
             Base64.encodeToString(signature.sign(), Base64.NO_WRAP)
         } catch (e: Exception) {
-            Log.e("SmCryptoUtils", "签名生成失败: ${e.message}")
+            Log.e("SmCryptoUtils", "RSA签名失败: ${e.message}")
             ""
         }
     }
 
     /**
-     * AES 加密 - 强制使用 NO_WRAP
+     * AES 加密：强制 NO_WRAP, IV 为 16 字节 0
      */
     fun encryptAES(content: String, aesKeyBase64: String): String {
         return try {
             val keyBytes = Base64.decode(aesKeyBase64, Base64.DEFAULT)
             val secretKey = SecretKeySpec(keyBytes, "AES")
             val iv = IvParameterSpec(ByteArray(16))
-            
             val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, iv)
-            
             val encryptedBytes = cipher.doFinal(content.toByteArray(Charsets.UTF_8))
-            // 【关键】强制 NO_WRAP
             Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
         } catch (e: Exception) {
-            Log.e("SmCryptoUtils", "AES 加密失败: ${e.message}")
             content
         }
     }

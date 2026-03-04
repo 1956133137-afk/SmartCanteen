@@ -18,32 +18,30 @@ class MainViewModel @Inject constructor(
     val uiEvent = _uiEvent.asSharedFlow()
 
     /**
-     * 方案一：使用之前封装的 Retrofit
+     * 回归 Retrofit 方式：移除对不可用 JAR 包类的依赖，使用纯手写拦截器逻辑
      */
     fun testSyncWhitelist() {
         viewModelScope.launch {
-            _uiEvent.emit("🚀 正在同步白名单...")
+            _uiEvent.emit("🚀 正在发起同步请求...")
             try {
+                // ！！！ 关键：确保 appId 为 20 位长号，deviceNo 为纯英文数字 ！！！
                 val response = repository.syncWhitelist(
-                    deviceNo = "SN123456789", // 建议使用纯英文数字测试
-                    appId = "11000000000000006202"
+                    deviceNo = "SN123456789",
+                    appId = "11000000000000070107"
                 )
                 
                 val bizContent = response.responseBizContent
-                
-                // 【关键修复】判断逻辑：优先识别业务成功，否则识别网关错误或业务错误
                 if (bizContent != null && bizContent.isSuccess()) {
-                    _uiEvent.emit("✅ 同步成功！获取到 ${bizContent.wNLCount} 条白名单。")
+                    _uiEvent.emit("✅ 同步成功！共 ${bizContent.wNLCount} 条数据")
                 } else {
-                    // 兼容处理：获取外层网关错误或内层业务错误
                     val errorMsg = response.gatewayReturnMsg 
                         ?: bizContent?.returnMsg 
                         ?: "错误码: ${response.gatewayReturnCode ?: "未知"}"
-                    _uiEvent.emit("❌ 同步失败：$errorMsg")
+                    _uiEvent.emit("❌ 失败：$errorMsg")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _uiEvent.emit("⚠️ 网络请求异常：${e.message}")
+                _uiEvent.emit("⚠️ 网络异常：${e.message}")
             }
         }
     }

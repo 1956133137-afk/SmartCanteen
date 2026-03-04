@@ -77,7 +77,7 @@ class IcbcGatewayInterceptor(
         val apiPath = originalRequest.url.encodedPath // 获取类似 "/api/icsc/..." 的路径
         val signContent = apiPath + "?" + paramsMap.entries.joinToString("&") { "${it.key}=${it.value}" }
         
-        Log.d("ICBC_DEBUG", ">>> 最终修正的待加签原串: $signContent")
+        Log.d("ICBC_DEBUG", ">>> 待加签原串: $signContent")
 
         // 6. 生成签名
         val sign = SmCryptoUtils.signRSA2(signContent, privateKey)
