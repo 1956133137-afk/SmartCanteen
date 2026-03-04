@@ -75,8 +75,11 @@ dependencies {
     // BouncyCastle
     implementation(libs.bouncycastle.prov)
     implementation(libs.bouncycastle.pkix)
+    
+    // FastJSON - 工行 SDK 强依赖
+    implementation("com.alibaba:fastjson:1.2.83")
 
-    // 【新增】加载 libs 目录下的所有本地 jar 包
+    // 加载 libs 目录下的本地 jar 包
     implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
 
     testImplementation(libs.junit)
