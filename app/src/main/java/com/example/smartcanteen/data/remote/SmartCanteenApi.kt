@@ -1,21 +1,9 @@
 package com.example.smartcanteen.data.remote
 
-import com.example.smartcanteen.data.remote.model.IcbcBaseResponse
-import com.example.smartcanteen.data.remote.model.SyncWhitelistRequest
-import com.example.smartcanteen.data.remote.model.SyncWhitelistResponse
-import retrofit2.http.Body
-import retrofit2.http.POST
-
+/**
+ * 业务 API 定义
+ * 备注：白名单同步已改为使用官方 SDK 方式，故此处不再定义对应接口。
+ */
 interface SmartCanteenApi {
-
-    /**
-     * 1. 白名单同步接口
-     * 文档：IcscSynchronizeFaceWhiteV1.md
-     */
-    @POST("api/icsc/synchronizeFaceWhite/V1")
-    suspend fun syncWhitelist(
-        @Body request: SyncWhitelistRequest
-    ): IcbcBaseResponse<SyncWhitelistResponse>
-
-    // 预留位置：后续在这里添加 下单、退款、设备回调 等其他接口...
+    // 后续如有非 SDK 请求的业务接口，请在此处添加
 }
