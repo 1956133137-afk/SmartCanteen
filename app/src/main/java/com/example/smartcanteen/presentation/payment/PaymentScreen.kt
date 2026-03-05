@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Backspace
-import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +25,10 @@ import com.example.smartcanteen.presentation.main.TextSecondary
 
 @Composable
 fun PaymentScreen(
-    onConfirmPay: (amountFen: Long) -> Unit = {}
+    balanceText: String = "0.00",
+    onConfirmPay: (amountFen: Long) -> Unit = {},
+    onBalanceClick: () -> Unit = {},
+    onMenuItemClick: (String) -> Unit = {}
 ) {
     var amountText by remember { mutableStateOf("0") }
 
@@ -35,18 +38,18 @@ fun PaymentScreen(
             .background(BgColor)
     ) {
         // 1. 顶部渐变背景
-        HeaderBackground(height = 240.dp)
+        HeaderBackground(height = 330.dp)
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // 2. 头部标题栏 (对齐主页风格)
+            // 2. 头部标题栏
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 56.dp, vertical = 30.dp),
+                    .padding(horizontal = 66.dp, vertical = 30.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -56,55 +59,159 @@ fun PaymentScreen(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Rounded.Payments,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
+                
+                // 余额显示区域
+                Surface(
+                    onClick = onBalanceClick,
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(32.dp),
+                    modifier = Modifier.height(64.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "账户余额",
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(20.dp))
+
+                // 更多按钮与弹窗菜单
+                var showMenu by remember { mutableStateOf(false) }
+                Box {
+                    Surface(
+                        onClick = { showMenu = true },
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(32.dp),
+                        modifier = Modifier.height(64.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.MoreVert,
+                                contentDescription = "更多设置",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "更多",
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // 进一步优化的下拉菜单：点击项后不立即关闭
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false },
+                        modifier = Modifier
+                            .background(Color.White)
+                            .width(300.dp)
+                    ) {
+                        val menuItems = listOf(
+                            Triple("白名单同步", Icons.Rounded.Assignment, Color(0xFF4DB6AC)),
+                            Triple("人脸采集", Icons.Rounded.Face, Color(0xFFFF7043)),
+                            Triple("退款", Icons.Rounded.CurrencyExchange, Color(0xFFFFA726)),
+                            Triple("设备同步", Icons.Rounded.Sync, Color(0xFF3B82F6)),
+                            Triple("其他", Icons.Rounded.Category, Color(0xFF999999))
+                        )
+                        
+                        menuItems.forEach { (title, icon, iconColor) ->
+                            DropdownMenuItem(
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = iconColor,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                },
+                                text = { 
+                                    Text(
+                                        text = title, 
+                                        color = TextPrimary, 
+                                        fontSize = 24.sp, 
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.padding(start = 12.dp)
+                                    ) 
+                                },
+                                onClick = {
+                                    // 移除了 showMenu = false，点击后菜单不会立即消失
+                                    onMenuItemClick(title)
+                                },
+                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
+                            )
+                            if (menuItems.last().first != title) {
+                                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 0.8.dp)
+                            }
+                        }
+                    }
+                }
             }
 
-            // 3. 内容主体卡片
+            // --- 间距下移 ---
+            Spacer(modifier = Modifier.height(50.dp))
+
+            // 3. 内容主体区域
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp))
+                    .padding(horizontal = 80.dp)
+                    .clip(RoundedCornerShape(40.dp))
                     .background(BgColor)
-                    .padding(horizontal = 56.dp, vertical = 20.dp)
+                    .padding(top = 10.dp, bottom = 55.dp)
             ) {
                 // 金额显示卡片
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 24.dp)
+                            .padding(horizontal = 24.dp, vertical = 20.dp)
                     ) {
                         Text(
                             text = "消费金额",
-                            fontSize = 20.sp,
+                            fontSize = 18.sp,
                             color = TextSecondary,
                             fontWeight = FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Row(
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Text(
                                 text = "¥",
-                                fontSize = 36.sp,
+                                fontSize = 32.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary,
-                                modifier = Modifier.padding(bottom = 12.dp)
+                                modifier = Modifier.padding(bottom = 8.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = fenToMoneyText(moneyTextToFenOrNull(amountText) ?: 0L),
-                                fontSize = 72.sp,
+                                fontSize = 64.sp,
                                 fontWeight = FontWeight.Black,
                                 color = TextPrimary,
                                 maxLines = 1
@@ -113,14 +220,14 @@ fun PaymentScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // 数字键盘容器
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
@@ -137,8 +244,6 @@ fun PaymentScreen(
                         onConfirm = { if (amountFen > 0) onConfirmPay(amountFen) }
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
