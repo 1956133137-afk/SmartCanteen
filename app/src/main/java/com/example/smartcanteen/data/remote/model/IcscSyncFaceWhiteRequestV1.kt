@@ -11,6 +11,7 @@ class IcscSyncFaceWhiteRequestV1 : IcbcRequest<IcscSyncFaceWhiteResponseV1> {
     
     private var serviceUrl: String? = null
     private var bizContent: IcscSyncFaceWhiteRequestV1Biz? = null
+    private var needEncrypt: Boolean = false
 
     override fun getMethod(): String = "POST"
     
@@ -28,8 +29,13 @@ class IcscSyncFaceWhiteRequestV1 : IcbcRequest<IcscSyncFaceWhiteResponseV1> {
         this.bizContent = bizContent as? IcscSyncFaceWhiteRequestV1Biz
     }
 
-    // --- 关键修改：暂时设为 false，排除加密对签名的干扰 ---
-    override fun isNeedEncrypt(): Boolean = false
+    // 正确重写接口方法，控制是否加密
+    override fun isNeedEncrypt(): Boolean = needEncrypt
+
+    // 提供 Setter 供外部调用
+    fun setNeedEncrypt(needEncrypt: Boolean) {
+        this.needEncrypt = needEncrypt
+    }
 
     override fun getBizContentClass(): Class<out BizContent>? = IcscSyncFaceWhiteRequestV1Biz::class.java
 

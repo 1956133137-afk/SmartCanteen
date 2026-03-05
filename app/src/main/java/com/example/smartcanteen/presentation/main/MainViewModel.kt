@@ -20,7 +20,7 @@ import com.example.smartcanteen.data.remote.model.IcscSyncFaceWhiteRequestV1
 import com.example.smartcanteen.data.remote.model.IcscSyncFaceWhiteResponseV1
 
 @HiltViewModel
-class MainViewModel @Inject constructor() : ViewModel() { // 移除了不存在的 SmartCanteenRepository
+class MainViewModel @Inject constructor() : ViewModel() {
 
     private val TAG = "ICBC_SDK_DEBUG"
 
@@ -34,9 +34,11 @@ class MainViewModel @Inject constructor() : ViewModel() { // 移除了不存在�
     val uiEvent = _uiEvent.asSharedFlow()
 
     // ---  核心配置参数 ---
-    private val myAppId = "11000000000000006202"
-    private val myPrivateKey = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCEBcRYHRLmUax4GKABuqfqJMblS0qoSZ4fsGhobjUnGpRpzsS7g8QNdioSUEOMH52XywDkRwB2YRSRZo/YDOtStqX8izNJIHM98/IkyPUate9TeIzFUF2yDPc87bskaQAbq03y2b2pmDOELF3FFXpHdZPkNnDJQcSCnQh2Ml27T+qISbcbOUsuk260UIdyUmi2s3fJ6t/QovcYaDrKZTkTNZjvtlcpf7sMPRp+jYNfHZakycaUGc+sHLAM0gczx3GFBuWUiB0m0lgowCHdtLbBvSnr7V1wJVQ+Q+c2opga5arE5qcEQfMDjIMIxlNUsMaWCcyEswRYf6XaJZgNLNAHAgMBAAECggEAINDWJxjC8+DlP8zPKN7ekgKmNaRrYD08QqA0s5CBQcEHlu1AVWPBPZ9bgcXVpGTPZUWeaR+E6+fhluqpYoiDjcG8rHNlQg4A1ytlyuLwmb0TSeozA3CgeXtjkQ9+buRylG4WKAEbdaZRV883V5+pD04YfqdRjZT9ZYHm8oo+ZipxCRJFtnqZxb76nxivNLSKHXCPrUBpf5l/nrxYFf4UfNLZCeYtA/jlG/LyrYX5Ar3fOIFbhUXR+rsaKOmA6Q8uyyIJcqyHXlnEJHAk/x609eDkQ/aM6xC10N0lSNACSocMHMFFVJmyO91m59xgCBG9sP1ybQ8XItQcc6AbL6oD0QKBgQDP8K7hFHRBicFZw/047O2VyfRdSRhq3hWX1T1C0rDYSysfgH0LDmNm5qRuSpx+cLUUpZiQSzSLRllZJW/nC+gtTFSxT1YLZLhwsjtXrwN6S7IbiqS4dbMXj8ZiRhfKJVHTsZW2OKEmiayaz/TgDYl+Y58+sDuoazIh1Ybjmu34hQKBgQCiiTh6bTpE0lnzBjY6mpT2WNsvSBbGSfnJnnErynlIEB8AIhMgYk0/rCYRXqUjWDhjeNmVejBNmRJfa9YDEugZyRr713kBxxy5omQUZqSZlHhWT4NHkst8PYvJTR2ZJd1okc0u72k/jKTuhQQ+T5SRq2ez+nkdukWTPAXYsGVSGwKBgFyG8qpBGcIX9CtnZIQyGT4v0Ua5Qd472EvpnQrhCcQVHqkz2XBUBLNDKiPRm3U/3bPEQ/DhJg5bTWK3n+WljLirYHxNmzISrWeoR3Oq8tc2W5iZxtY1uW1gkpwkKG3Q0WprePzOkha96EozAvm3zFirJ68TaFh26qXXh+A7jmypAoGAZ7BksG2YO6l6Kriuxcox98qN4eb6aHtu9/m1NvuPTbLDJCGY1BMCNvmKu5AGh7rTFlpVbK+ruwVJHEi+Ge3o1fJe3YUDtGei4qY/dGha34NBFcbZ+EIkwFi/Iaeplzb5vakuHaAsI5eE7Ik9QMch/6A6oy3KMHXRxvEGxcsaiDsCgYEAsQTwUfEeweYXecSzURipJMUOhA5SyejYQT8l9PkBO/cg7w7Z373Yog1ITlNnSs9msvVX5AaxZWst+la0pWh2c+2IXRLVem5I2TGt29KQwrCGdnn9/NhAbZbCZPcm0HrKnhLKplqQ/BNpjeCbb1UFbTSj7bjRr7MtRsbu1EdryOI="
+    private val myAppId = "11000000000000070107"
+    private val myPrivateKey = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDACZ1v1qdRRYwcFCQFf+oUXMre6CA1O5ZhKCXC4rWNMT0reovFTw3nv3tBNr0XRHU/hp77R5I+zRPEFH9b3lg9R3DlT698QNz6199p2DedXmCZwjAKWVq78OQMjHnonIFZd832KMCE2eLwChBLQH+UEm7iHAj5FxgYuafbFbWxbyAH2IgaEce2fupca+no33ndRdHhVwx/D+GMkv+ynqrFNT0I2EehYMHIw4AmaWe5mpT2HEJNOdgVX10Ol1DJpqIizMxIuExljVCvFcGiP6VeufoWV7K8jbGVtOq4g/E5faOTB7Kif/+vtwDmY6ZUrCvRM/Kler1rrDClFCqhNlZrAgMBAAECggEAR58uZyhFJfQM0eoXFzACYw7KoQEtBf2P0/OPxdQdByhOmpktaOzXkE/jjcp3Eqb3Hba9M5WZby+4SACnEWHnQg+ThQrHtc1RPYLmsciw0VICMEZy+WEjDIZG34FC9GTufypGGCFR0BqdX445Tn+jNVv8m/r9w7z/wTT47CZ4KdDVRoHqbSXURAwB7TlGv88BiQUI9ADFXnOJIf7gs8RQbAmlt6FMfh5p8Ud5wRqmp+le0LdsNB9dDNvlz+oNCgkg1qIdf4JjKSqOM4eOhsZiWH6SQ1kQYo97WBBoUVXRUuL/jb1aFxWW4zPp5hEdNEWKGWCLst8kJShwHcw6oodSnQKBgQDW6e4HAgcFUbDEeDh24TZjpy22Z7s78NO59Mzqgkp6OKTgcVar22STtYVxBOfvW5MUzHAfhsFmmtlQOnC+gsl/F7YUtr7RymW/l9IaIORmDUroomQ3p6s5syzGiUyYB8F6GfA1t7JrCDegbAiv0DxuPsBRPOBjtnz8JzUQ3a1x1QKBgQDkwBozmXCwXrz7bIcngRKT/kZLx1ingI1hqG/kzf4QRr8WOOiuyKQfdRD7BVPe7dIOkiTIGD9RlDyc6lsmLvt66JQvB8RBeOStwuhTBFBDuTec+4h8Vkx03N+aH+m0zJP3EQcGekSblbB50aWm/icEybVrXFRgWvbauxX46oCHPwKBgQCkBdHWo2N8WcaRjDd785KxJ8yppC2wJ7NP/1fNuzbgZQ7hBV9itoTifu2jPl1NvxRYEVeZmB1PE+u7YX7ex67FQvGCiZ7FOrXBLjv6GRR4FrkPJ7FZEKyL0wXfWLaOaYzuhZFhThvruE/MLefLVyBn+5iH5/BR6dsmDz5e6vEPKQKBgCCeJ95NtdzgVXBAhHEknYKO0nVBwql30jEntHTazqyBegPwL3Wk1IpLxhUVKGV0YeyD+Eyz8GtwiMgTPtYOAvv+qAqgv+JaG7mPPlOAHPXbNkvjLg4UvCg5yoSOomOOfFbRjb/ltVy+FoD4XPeX6/Zp0L2zV7C5p9N+s95fid4/AoGBALZ5yMblQVgxTfQxFkcGpF7E7b0AojkOfrf1wHyvr77sGn4X+BuSXiwvbRNpLvYyIl+QpaAhul7eCotQPPYT3hhd30Be4kmmPeIeBMyXq9lRNOd+xoJiCL9kQBKFczrko+ZnKkRYV5ga59vLi0USttxKWyBA2q73mEiUk18gbRfj"
+
     private val icbcGatewayPublicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCMpjaWjngB4E3ATh+G1DVAmQnIpiPEFAEDqRfNGAVvvH35yDetqewKi0l7OEceTMN1C6NPym3zStvSoQayjYV+eIcZERkx31KhtFu9clZKgRTyPjdKMIth/wBtPKjL/5+PYalLdomM4ONthrPgnkN4x4R0+D4+EBpXo8gNiAFsNwIDAQAB"
+    private val myEncryptKey = "22WlwH8dax4xlulvOoyAyA==" 
 
     private fun cleanKey(key: String?): String {
         return key?.replace("-----BEGIN PRIVATE KEY-----", "")
@@ -58,16 +60,16 @@ class MainViewModel @Inject constructor() : ViewModel() { // 移除了不存在�
             try {
                 // 1. 初始化 SDK 客户端
                 val client = DefaultIcbcClient(
-                    myAppId,                // AppID
-                    "RSA2",                 // 签名类型
-                    cleanedPrivateKey,      // 应用私钥
-                    "UTF-8",                // 字符集
-                    "json",                 // 格式
-                    cleanedGatewayPublicKey,// 工行平台公钥
-                    "AES",                  // encryptType (如不加密可传 null)
-                    "JXJMOSihsXJoBJ5CpN4Ttg==", // encryptKey (如不加密可传 null)
-                    "",                   // caPath
-                    ""                    // password
+                    myAppId,                
+                    "RSA2",                 
+                    cleanedPrivateKey,      
+                    "UTF-8",                
+                    "json",                 
+                    cleanedGatewayPublicKey,
+                    "AES",                  
+                    myEncryptKey,           
+                    "",                   
+                    ""                    
                 )
 
                 // 2. 构造请求
@@ -82,6 +84,9 @@ class MainViewModel @Inject constructor() : ViewModel() { // 移除了不存在�
                     this.modifyStatus = "1"
                 }
                 request.setBizContent(bizContent)
+                
+                // --- 修复：开启加密开关 ---
+                request.setNeedEncrypt(true) 
 
                 // 4. 发起请求
                 val msgId = System.currentTimeMillis().toString()
