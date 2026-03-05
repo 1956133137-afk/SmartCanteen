@@ -29,7 +29,7 @@ class IcscSyncFaceWhiteRequestV1 : IcbcRequest<IcscSyncFaceWhiteResponseV1> {
         this.bizContent = bizContent as? IcscSyncFaceWhiteRequestV1Biz
     }
 
-    // 正确重写接口方法，控制是否加密
+    // 修复：应该返回 needEncrypt 变量的值
     override fun isNeedEncrypt(): Boolean = needEncrypt
 
     // 提供 Setter 供外部调用
