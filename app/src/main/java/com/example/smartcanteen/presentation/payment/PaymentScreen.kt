@@ -118,7 +118,7 @@ fun PaymentScreen(
                         }
                     }
 
-                    // 进一步优化的下拉菜单：点击项后不立即关闭
+                    // 下拉菜单
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
@@ -154,7 +154,7 @@ fun PaymentScreen(
                                     ) 
                                 },
                                 onClick = {
-                                    // 移除了 showMenu = false，点击后菜单不会立即消失
+                                    showMenu = false // 点击任意项时，立即关闭更多弹窗
                                     onMenuItemClick(title)
                                 },
                                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
