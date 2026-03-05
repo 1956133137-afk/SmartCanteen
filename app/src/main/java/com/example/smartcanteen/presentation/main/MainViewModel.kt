@@ -1,6 +1,7 @@
 package com.example.smartcanteen.presentation.main
 
 import android.util.Log
+import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -9,6 +10,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.security.Security
+import java.security.KeyFactory
+import java.security.spec.PKCS8EncodedKeySpec
+import java.security.spec.X509EncodedKeySpec
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import javax.inject.Inject
 import com.alibaba.fastjson.JSON
@@ -60,26 +64,57 @@ class MainViewModel @Inject constructor() : ViewModel() {
             val cleanedPrivateKey = cleanKey(myPrivateKey)
             val cleanedGatewayPublicKey = cleanKey(icbcGatewayPublicKey)
 
+            // 1. 增加校验日志
             try {
-                // 1. 初始化 SDK 客户端
+                // AES 解码长度校验
+                val aesDecoded = Base64.decode(myEncryptKey, Base64.DEFAULT)
+                Log.d(TAG, ">>> [校验1] AES Key 解码后长度: ${aesDecoded.size}")
+
+                val kf = KeyFactory.getInstance("RSA")
+
+                // 私钥 PKCS8 可解析性校验
+                try {
+                    val privKeySpec = PKCS8EncodedKeySpec(Base64.decode(cleanedPrivateKey, Base64.DEFAULT))
+                    kf.generatePrivate(privKeySpec)
+                    Log.d(TAG, ">>> [校验2] 私钥 PKCS8 解析成功")
+                } catch (e: Exception) {
+                    Log.e(TAG, ">>> [校验2] 私钥 PKCS8 解析失败: ${e.message}")
+                }
+
+                // 公钥 X509 可解析性校验
+                try {
+                    val pubKeySpec = X509EncodedKeySpec(Base64.decode(cleanedGatewayPublicKey, Base64.DEFAULT))
+                    kf.generatePublic(pubKeySpec)
+                    Log.d(TAG, ">>> [校验3] 公钥 X509 解析成功")
+                } catch (e: Exception) {
+                    Log.e(TAG, ">>> [校验3] 公钥 X509 解析失败: ${e.message}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, ">>> 预校验过程抛出异常", e)
+            }
+
+            try {
+                // 2. 初始化 SDK 客户端
                 val client = DefaultIcbcClient(
-                    myAppId,                
-                    "RSA2",                 
-                    cleanedPrivateKey,      
-                    "UTF-8",                
-                    "json",                 
+                    myAppId,
+                    "RSA2",
+                    cleanedPrivateKey,
+                    "UTF-8",
+                    "json",
                     cleanedGatewayPublicKey,
-                    "AES",                  
-                    myEncryptKey,           
-                    "",                     
-                    ""                      
+                    "AES",
+                    myEncryptKey,
+                    "",
+                    ""
                 )
 
-                // 2. 构造请求
+                // 3. 构造请求
                 val request = IcscSyncFaceWhiteRequestV1()
-                request.setServiceUrl("https://gw.open.icbc.com.cn/api/icsc/synchronizeFaceWhite/V1")
+                val serviceUrl = "https://gw.open.icbc.com.cn/api/icsc/synchronizeFaceWhite/V1"
+                Log.d(TAG, ">>> serviceUrl: $serviceUrl")
+                request.setServiceUrl(serviceUrl)
 
-                // 3. 构造业务参数
+                // 4. 构造业务参数
                 val bizContent = IcscSyncFaceWhiteRequestV1.IcscSyncFaceWhiteRequestV1Biz().apply {
                     this.appId = myAppId
                     this.deviceNo = "SN123456789"
@@ -89,13 +124,13 @@ class MainViewModel @Inject constructor() : ViewModel() {
                 request.setBizContent(bizContent)
                 request.setNeedEncrypt(true)
 
-                // 4. 发起请求
+                // 5. 发起请求
                 val msgId = System.currentTimeMillis().toString()
-                
+
                 try {
                     Log.d(TAG, ">>> 发起 SDK 请求: msgId=$msgId")
                     val response = client.execute(request, msgId) as IcscSyncFaceWhiteResponseV1
-                    
+
                     Log.d(TAG, ">>> SDK 响应原始数据: ${JSON.toJSONString(response)}")
 
                     if (response.isSuccess) {
@@ -104,7 +139,7 @@ class MainViewModel @Inject constructor() : ViewModel() {
                     } else {
                         Log.e(TAG, " [失败] 错误码: ${response.returnCode}, 消息: ${response.returnMsg}")
                         if (response.msgId != msgId) {
-                            Log.e(TAG, " [警告] msgId 不匹配，可能是本地生成的错误响应")
+                            Log.e(TAG, " [警告] msgId 不匹配: 发送=$msgId, 返回=${response.msgId}")
                         }
                         _uiEvent.emit(" 同步失败: ${response.returnMsg}")
                     }
