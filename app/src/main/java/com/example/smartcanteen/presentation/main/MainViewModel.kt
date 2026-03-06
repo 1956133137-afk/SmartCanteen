@@ -1,7 +1,6 @@
 package com.example.smartcanteen.presentation.main
 
 import android.util.Log
-import android.util.Base64
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -10,14 +9,14 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.security.Security
-import java.security.KeyFactory
-import java.security.spec.PKCS8EncodedKeySpec
-import java.security.spec.X509EncodedKeySpec
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import javax.inject.Inject
 import com.alibaba.fastjson.JSON
 import java.util.*
+import javax.net.ssl.*
+import java.security.cert.X509Certificate
 
+// 引入工行官方 SDK 核心类
 import com.icbc.api.DefaultIcbcClient
 import com.example.smartcanteen.data.remote.model.IcscSyncFaceWhiteRequestV1
 import com.example.smartcanteen.data.remote.model.IcscSyncFaceWhiteResponseV1
@@ -28,13 +27,25 @@ class MainViewModel @Inject constructor() : ViewModel() {
     private val TAG = "ICBC_SDK_DEBUG"
 
     init {
-        // 确保 BouncyCastle 正确注册
+        // 1. 注册 BouncyCastle 加密提供者
+        Security.removeProvider("BC")
+        Security.addProvider(BouncyCastleProvider())
+
+        // 2. 【仅限开发测试】绕过 SSL 证书校验，排查是否为证书信任问题
         try {
-            Security.removeProvider("BC")
-            Security.addProvider(BouncyCastleProvider())
-            Log.d(TAG, "BouncyCastle Provider 注册成功")
+            val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            })
+            val sc = SSLContext.getInstance("SSL")
+            sc.init(null, trustAllCerts, java.security.SecureRandom())
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.socketFactory)
+            // 同时也绕过域名校验
+            HttpsURLConnection.setDefaultHostnameVerifier { _, _ -> true }
+            Log.d(TAG, "SSL 证书校验已临时绕过（仅限测试）")
         } catch (e: Exception) {
-            Log.e(TAG, "BouncyCastle 注册失败", e)
+            Log.e(TAG, "设置绕过 SSL 失败", e)
         }
     }
 
@@ -43,10 +54,10 @@ class MainViewModel @Inject constructor() : ViewModel() {
 
     // ---  核心配置参数 ---
     private val myAppId = "11000000000000070107"
-    private val myPrivateKey = "MIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDACZ1v1qdRRYwcFCQFf+oUXMre6CA1O5ZhKCXC4rWNMT0reovFTw3nv3tBNr0XRHU/hp77R5I+zRPEFH9b3lg9R3DlT698QNz6199p2DedXmCZwjAKWVq78OQMjHnonIFZd832KMCE2eLwChBLQH+UEm7iHAj5FxgYuafbFbWxbyAH2IgaEce2fupca+no33ndRdHhVwx/D+GMkv+ynqrFNT0I2EehYMHIw4AmaWe5mpT2HEJNOdgVX10Ol1DJpqIizMxIuExljVCvFcGiP6VeufoWV7K8jbGVtOq4g/E5faOTB7Kif/+vtwDmY6ZUrCvRM/Kler1rrDClFCqhNlZrAgMBAAECggEAR58uZyhFJfQM0eoXFzACYw7KoQEtBf2P0/OPxdQdByhOmpktaOzXkE/jjcp3Eqb3Hba9M5WZby+4SACnEWHnQg+ThQrHtc1RPYLmsciw0VICMEZy+WEjDIZG34FC9GTufypGGCFR0BqdX445Tn+jNVv8m/r9w7z/wTT47CZ4KdDVRoHqbSXURAwB7TlGv88BiQUI9ADFXnOJIf7gs8RQbAmlt6FMfh5p8Ud5wRqmp+le0LdsNB9dDNvlz+oNCgkg1qIdf4JjKSqOM4eOhsZiWH6SQ1kQYo97WBBoUVXRUuL/jb1aFxWW4zPp5hEdNEWKGWCLst8kJShwHcw6oodSnQKBgQDW6e4HAgcFUbDEeDh24TZjpy22Z7s78NO59Mzqgkp6OKTgcVar22STtYVxBOfvW5MUzHAfhsFmmtlQOnC+gsl/F7YUtr7RymW/l9IaIORmDUroomQ3p6s5syzGiUyYB8F6GfA1t7JrCDegbAiv0DxuPsBRPOBjtnz8JzUQ3a1x1QKBgQDkwBozmXCwXrz7bIcngRKT/kZLx1ingI1hqG/kzf4QRr8WOOiuyKQfdRD7BVPe7dIOkiTIGD9RlDyc6lsmLvt66JQvB8RBeOStwuhTBFBDuTec+4h8Vkx03N+aH+m0zJP3EQcGekSblbB50aWm/icEybVrXFRgWvbauxX46oCHPwKBgQCkBdHWo2N8WcaRjDd785KxJ8yppC2wJ7NP/1fNuzbgZQ7hBV9itoTifu2jPl1NvxRYEVeZmB1PE+u7YX7ex67FQvGCiZ7FOrXBLjv6GRR4FrkPJ7FZEKyL0wXfWLaOaYzuhZFhThvruE/MLefLVyBn+5iH5/BR6dsmDz5e6vEPKQKBgCCeJ95NtdzgVXBAhHEknYKO0nVBwql30jEntHTazqyBegPwL3Wk1IpLxhUVKGV0YeyD+Eyz8GtwiMgTPtYOAvv+qAqgv+JaG7mPPlOAHPXbNkvjLg4UvCg5yoSOomOOfFbRjb/ltVy+FoD4XPeX6/Zp0L2zV7C5p9N+s95fid4/AoGBALZ5yMblQVgxTfQxFkcGpF7E7b0AojkOfrf1wHyvr77sGn4X+BuSXiwvbRNpLvYyIl+QpaAhul7eCotQPPYT3hhd30Be4kmmPeIeBMyXq9lRNOd+xoJiCL9kQBKFczrko+ZnKkRYV5ga59vLi0USttxKWyBA2q73mEiUk18gbRfj"
+    private val myPrivateKey = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDACZ1v1qdRRYwcFCQFf+oUXMre6CA1O5ZhKCXC4rWNMT0reovFTw3nv3tBNr0XRHU/hp77R5I+zRPEFH9b3lg9R3DlT698QNz6199p2DedXmCZwjAKWVq78OQMjHnonIFZd832KMCE2eLwChBLQH+UEm7iHAj5FxgYuafbFbWxbyAH2IgaEce2fupca+no33ndRdHhVwx/D+GMkv+ynqrFNT0I2EehYMHIw4AmaWe5mpT2HEJNOdgVX10Ol1DJpqIizMxIuExljVCvFcGiP6VeufoWV7K8jbGVtOq4g/E5faOTB7Kif/+vtwDmY6ZUrCvRM/Kler1rrDClFCqhNlZrAgMBAAECggEAR58uZyhFJfQM0eoXFzACYw7KoQEtBf2P0/OPxdQdByhOmpktaOzXkE/jjcp3Eqb3Hba9M5WZby+4SACnEWHnQg+ThQrHtc1RPYLmsciw0VICMEZy+WEjDIZG34FC9GTufypGGCFR0BqdX445Tn+jNVv8m/r9w7z/wTT47CZ4KdDVRoHqbSXURAwB7TlGv88BiQUI9ADFXnOJIf7gs8RQbAmlt6FMfh5p8Ud5wRqmp+le0LdsNB9dDNvlz+oNCgkg1qIdf4JjKSqOM4eOhsZiWH6SQ1kQYo97WBBoUVXRUuL/jb1aFxWW4zPp5hEdNEWKGWCLst8kJShwHcw6oodSnQKBgQDW6e4HAgcFUbDEeDh24TZjpy22Z7s78NO59Mzqgkp6OKTgcVar22STtYVxBOfvW5MUzHAfhsFmmtlQOnC+gsl/F7YUtr7RymW/l9IaIORmDUroomQ3p6s5syzGiUyYB8F6GfA1t7JrCDegbAiv0DxuPsBRPOBjtnz8JzUQ3a1x1QKBgQDkwBozmXCwXrz7bIcngRKT/kZLx1ingI1hqG/kzf4QRr8WOOiuyKQfdRD7BVPe7dIOkiTIGD9RlDyc6lsmLvt66JQvB8RBeOStwuhTBFBDuTec+4h8Vkx03N+aH+m0zJP3EQcGekSblbB50aWm/icEybVrXFRgWvbauxX46oCHPwKBgQCkBdHWo2N8WcaRjDd785KxJ8yppC2wJ7NP/1fNuzbgZQ7hBV9itoTifu2jPl1NvxRYEVeZmB1PE+u7YX7ex67FQvGCiZ7FOrXBLjv6GRR4FrkPJ7FZEKyL0wXfWLaOaYzuhZFhThvruE/MLefLVyBn+5iH5/BR6dsmDz5e6vEPKQKBgCCeJ95NtdzgVXBAhHEknYKO0nVBwql30jEntHTazqyBegPwL3Wk1IpLxhUVKGV0YeyD+Eyz8GtwiMgTPtYOAvv+qAqgv+JaG7mPPlOAHPXbNkvjLg4UvCg5yoSOomOOfFbRjb/ltVy+FoD4XPeX6/Zp0L2zV7C5p9N+s95fid4/AoGBALZ5yMblQVgxTfQxFkcGpF7E7b0AojkOfrf1wHyvr77sGn4X+BuSXiwvbRNpLvYyIl+QpaAhul7eCotQPPYT3hhd30Be4kmmPeIeBMyXq9lRNOd+xoJiCL9kQBKFczrko+ZnKkRYV5ga59vLi0USttxKWyBA2q73mEiUk18gbRfj"
 
     private val icbcGatewayPublicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCMpjaWjngB4E3ATh+G1DVAmQnIpiPEFAEDqRfNGAVvvH35yDetqewKi0l7OEceTMN1C6NPym3zStvSoQayjYV+eIcZERkx31KhtFu9clZKgRTyPjdKMIth/wBtPKjL/5+PYalLdomM4ONthrPgnkN4x4R0+D4+EBpXo8gNiAFsNwIDAQAB"
-    private val myEncryptKey = "22WlwH8dax4xlulvOoyAyA=="
+    private val myEncryptKey = "22WlwH8dax4xlulvOoyAyA==" 
 
     private fun cleanKey(key: String?): String {
         return key?.replace("-----BEGIN PRIVATE KEY-----", "")
@@ -60,61 +71,31 @@ class MainViewModel @Inject constructor() : ViewModel() {
     fun testSyncWhitelist() {
         viewModelScope.launch(Dispatchers.IO) {
             Log.d(TAG, "-------------------- SDK 请求开始 --------------------")
-
+            _uiEvent.emit(" 正在同步白名单...")
+            
             val cleanedPrivateKey = cleanKey(myPrivateKey)
             val cleanedGatewayPublicKey = cleanKey(icbcGatewayPublicKey)
 
-            // 1. 增加校验日志
             try {
-                // AES 解码长度校验
-                val aesDecoded = Base64.decode(myEncryptKey, Base64.DEFAULT)
-                Log.d(TAG, ">>> [校验1] AES Key 解码后长度: ${aesDecoded.size}")
-
-                val kf = KeyFactory.getInstance("RSA")
-
-                // 私钥 PKCS8 可解析性校验
-                try {
-                    val privKeySpec = PKCS8EncodedKeySpec(Base64.decode(cleanedPrivateKey, Base64.DEFAULT))
-                    kf.generatePrivate(privKeySpec)
-                    Log.d(TAG, ">>> [校验2] 私钥 PKCS8 解析成功")
-                } catch (e: Exception) {
-                    Log.e(TAG, ">>> [校验2] 私钥 PKCS8 解析失败: ${e.message}")
-                }
-
-                // 公钥 X509 可解析性校验
-                try {
-                    val pubKeySpec = X509EncodedKeySpec(Base64.decode(cleanedGatewayPublicKey, Base64.DEFAULT))
-                    kf.generatePublic(pubKeySpec)
-                    Log.d(TAG, ">>> [校验3] 公钥 X509 解析成功")
-                } catch (e: Exception) {
-                    Log.e(TAG, ">>> [校验3] 公钥 X509 解析失败: ${e.message}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, ">>> 预校验过程抛出异常", e)
-            }
-
-            try {
-                // 2. 初始化 SDK 客户端
+                // 1. 初始化 SDK 客户端
                 val client = DefaultIcbcClient(
-                    myAppId,
-                    "RSA2",
-                    cleanedPrivateKey,
-                    "UTF-8",
-                    "json",
+                    myAppId,                
+                    "RSA2",                 
+                    cleanedPrivateKey,      
+                    "UTF-8",                
+                    "json",                 
                     cleanedGatewayPublicKey,
-                    "AES",
-                    myEncryptKey,
+                    "AES",                  
+                    myEncryptKey,           
                     "",
                     ""
                 )
 
-                // 3. 构造请求
+                // 2. 构造请求
                 val request = IcscSyncFaceWhiteRequestV1()
-                val serviceUrl = "https://gw.open.icbc.com.cn/api/icsc/synchronizeFaceWhite/V1"
-                Log.d(TAG, ">>> serviceUrl: $serviceUrl")
-                request.setServiceUrl(serviceUrl)
+                request.setServiceUrl("https://gw.open.icbc.com.cn/api/icsc/synchronizeFaceWhite/V1")
 
-                // 4. 构造业务参数
+                // 3. 构造业务参数
                 val bizContent = IcscSyncFaceWhiteRequestV1.IcscSyncFaceWhiteRequestV1Biz().apply {
                     this.appId = myAppId
                     this.deviceNo = "SN123456789"
@@ -122,36 +103,33 @@ class MainViewModel @Inject constructor() : ViewModel() {
                     this.modifyStatus = "1"
                 }
                 request.setBizContent(bizContent)
+                
+                // --- 修复：开启加密开关 ---
                 request.setNeedEncrypt(true)
 
-                // 5. 发起请求
+                // 4. 发起请求
                 val msgId = System.currentTimeMillis().toString()
+                Log.d(TAG, ">>> SDK 请求原始业务内容 (bizContent): ${JSON.toJSONString(bizContent)}")
+                Log.d(TAG, ">>> 发起 SDK 请求: msgId=$msgId")
+                
+                val response: IcscSyncFaceWhiteResponseV1 = client.execute(request, msgId)
 
-                try {
-                    Log.d(TAG, ">>> 发起 SDK 请求: msgId=$msgId")
-                    val response = client.execute(request, msgId) as IcscSyncFaceWhiteResponseV1
-
-                    Log.d(TAG, ">>> SDK 响应原始数据: ${JSON.toJSONString(response)}")
-
-                    if (response.isSuccess) {
-                        Log.d(TAG, " [成功] 名单总数: ${response.wNLCount}")
-                        _uiEvent.emit(" 同步成功！数量: ${response.wNLCount ?: 0}")
-                    } else {
-                        Log.e(TAG, " [失败] 错误码: ${response.returnCode}, 消息: ${response.returnMsg}")
-                        if (response.msgId != msgId) {
-                            Log.e(TAG, " [警告] msgId 不匹配: 发送=$msgId, 返回=${response.msgId}")
-                        }
-                        _uiEvent.emit(" 同步失败: ${response.returnMsg}")
-                    }
-                } catch (e: Throwable) {
-                    // 强行打印底层真实异常堆栈
-                    Log.e(TAG, "SDK execute 抛异常（真实原因在这里）msgId=$msgId", e)
-                    _uiEvent.emit(" SDK 调用崩溃: ${e.message}")
+                // 5. 处理响应
+                Log.d(TAG, ">>> SDK 响应内容: ${JSON.toJSONString(response)}")
+                
+                if (response.isSuccess) {
+                    Log.d(TAG, " [成功] 名单总数: ${response.wNLCount}")
+                    _uiEvent.emit(" 同步成功！数量: ${response.wNLCount ?: 0}")
+                } else {
+                    Log.e(TAG, " [失败] 错误码: ${response.returnCode}, 消息: ${response.returnMsg}")
+                    _uiEvent.emit(" 同步失败: ${response.returnMsg}")
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, " [异常] 初始化阶段出错:", e)
-                _uiEvent.emit(" 初始化异常: ${e.message}")
+                // 关键：打印详细堆栈，这能看到是 SocketTimeout、UnknownHost 还是别的
+                Log.e(TAG, " [详细异常堆栈] ", e)
+                e.printStackTrace() // 这会输出到 System.err
+                _uiEvent.emit(" 程序异常: ${e.message}")
             }
             Log.d(TAG, "-------------------- SDK 请求结束 --------------------")
         }

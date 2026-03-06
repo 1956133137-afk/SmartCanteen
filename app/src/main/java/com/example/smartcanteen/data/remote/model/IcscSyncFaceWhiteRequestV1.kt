@@ -29,8 +29,8 @@ class IcscSyncFaceWhiteRequestV1 : IcbcRequest<IcscSyncFaceWhiteResponseV1> {
         this.bizContent = bizContent as? IcscSyncFaceWhiteRequestV1Biz
     }
 
-    // 修复：应该返回 needEncrypt 变量的值
-    override fun isNeedEncrypt(): Boolean = needEncrypt
+    // 正确重写接口方法，控制是否加密
+    override fun isNeedEncrypt(): Boolean = true
 
     // 提供 Setter 供外部调用
     fun setNeedEncrypt(needEncrypt: Boolean) {
@@ -43,7 +43,6 @@ class IcscSyncFaceWhiteRequestV1 : IcbcRequest<IcscSyncFaceWhiteResponseV1> {
 
     /**
      * 内部业务参数数据模型
-     * 必须确保字段名与工行文档完全一致
      */
     class IcscSyncFaceWhiteRequestV1Biz : BizContent {
         @JSONField(name = "appId")

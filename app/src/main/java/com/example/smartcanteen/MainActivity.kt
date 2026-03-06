@@ -20,11 +20,11 @@ class MainActivity : ComponentActivity() {
         // 开启沉浸式全屏，让蓝色头部延伸到状态栏
         enableEdgeToEdge()
         setContent {
-            MaterialTheme {
 
-                MainScreen()
+            MainScreen()
 
 
+//            MaterialTheme {
 //                val navController = rememberNavController()
 //
 //                NavHost(navController = navController, startDestination = "payment") {
@@ -44,7 +44,7 @@ class MainActivity : ComponentActivity() {
 //                        )
 //                    }
 //                }
-            }
+//            }
         }
     }
 }
