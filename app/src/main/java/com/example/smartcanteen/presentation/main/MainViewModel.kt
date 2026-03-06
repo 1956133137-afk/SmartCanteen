@@ -68,9 +68,16 @@ class MainViewModel @Inject constructor() : ViewModel() {
             ?.trim() ?: ""
     }
 
+    /**
+     * 生成唯一的业务流水号 (msgId)
+     */
+    private fun generateMsgId(): String {
+        return UUID.randomUUID().toString().replace("-", "").take(20)
+    }
+
     fun testSyncWhitelist() {
         viewModelScope.launch(Dispatchers.IO) {
-            Log.d(TAG, "-------------------- SDK 请求开始 --------------------")
+            Log.d(TAG, "-------------------- SDK 请求详情 --------------------")
             _uiEvent.emit(" 正在同步白名单...")
             
             val cleanedPrivateKey = cleanKey(myPrivateKey)
@@ -93,13 +100,14 @@ class MainViewModel @Inject constructor() : ViewModel() {
 
                 // 2. 构造请求
                 val request = IcscSyncFaceWhiteRequestV1()
-                request.setServiceUrl("https://gw.open.icbc.com.cn/api/icsc/synchronizeFaceWhite/V1")
+                val targetUrl = "https://gw.open.icbc.com.cn/api/icsc/synchronizeFaceWhite/V1"
+                request.setServiceUrl(targetUrl)
 
                 // 3. 构造业务参数
                 val bizContent = IcscSyncFaceWhiteRequestV1.IcscSyncFaceWhiteRequestV1Biz().apply {
                     this.appId = myAppId
                     this.deviceNo = "SN123456789"
-                    this.synNum = 20000
+                    this.synNum = 100
                     this.modifyStatus = "1"
                 }
                 request.setBizContent(bizContent)
@@ -107,15 +115,22 @@ class MainViewModel @Inject constructor() : ViewModel() {
                 // --- 修复：开启加密开关 ---
                 request.setNeedEncrypt(true)
 
-                // 4. 发起请求
-                val msgId = System.currentTimeMillis().toString()
-                Log.d(TAG, ">>> SDK 请求原始业务内容 (bizContent): ${JSON.toJSONString(bizContent)}")
-                Log.d(TAG, ">>> 发起 SDK 请求: msgId=$msgId")
+                // 4. 发起请求 (使用随机生成的 msgId)
+                val msgId = generateMsgId()
+                
+                Log.d(TAG, ">>> [1] 请求地址 (URL): $targetUrl")
+                Log.d(TAG, ">>> [2] 应用ID (AppID): $myAppId")
+                Log.d(TAG, ">>> [3] 消息ID (MsgId): $msgId")
+                Log.d(TAG, ">>> [4] 签名类型 (SignType): RSA2")
+                Log.d(TAG, ">>> [5] 业务内容 (BizContent): ${JSON.toJSONString(bizContent)}")
+                Log.d(TAG, ">>> [6] 加密开关 (NeedEncrypt): ${request.isNeedEncrypt}")
+
+                Log.d(TAG, ">>> 正在调用 SDK 发起网络请求...")
                 
                 val response: IcscSyncFaceWhiteResponseV1 = client.execute(request, msgId)
 
                 // 5. 处理响应
-                Log.d(TAG, ">>> SDK 响应内容: ${JSON.toJSONString(response)}")
+                Log.d(TAG, ">>> SDK 完整响应内容: ${JSON.toJSONString(response)}")
                 
                 if (response.isSuccess) {
                     Log.d(TAG, " [成功] 名单总数: ${response.wNLCount}")
@@ -126,12 +141,10 @@ class MainViewModel @Inject constructor() : ViewModel() {
                 }
 
             } catch (e: Exception) {
-                // 关键：打印详细堆栈，这能看到是 SocketTimeout、UnknownHost 还是别的
                 Log.e(TAG, " [详细异常堆栈] ", e)
-                e.printStackTrace() // 这会输出到 System.err
                 _uiEvent.emit(" 程序异常: ${e.message}")
             }
-            Log.d(TAG, "-------------------- SDK 请求结束 --------------------")
+            Log.d(TAG, "-------------------- SDK 请求详情结束 --------------------")
         }
     }
 }
