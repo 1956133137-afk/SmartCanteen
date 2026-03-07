@@ -91,12 +91,14 @@ fun WhitelistSyncScreen(
                         if (isSyncing) {
                             CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
                         } else {
+                            // 👉 已经修改为云端下载图标
                             Icon(
-                                imageVector = Icons.Rounded.CloudDownload, // 已经改为云端下载图标
-                                contentDescription = "下载同步", // 建议同步把描述也改一下
+                                imageVector = Icons.Rounded.CloudDownload,
+                                contentDescription = "下载同步",
                                 tint = Color.White,
                                 modifier = Modifier.size(40.dp)
-                            )}
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.Transparent),
