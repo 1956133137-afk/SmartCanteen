@@ -1,10 +1,12 @@
 package com.example.smartcanteen.presentation.payment
 
+import android.R.id.message
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Backspace
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,13 +26,27 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties // 👉 新增导入
+import androidx.compose.ui.window.DialogProperties
 import com.example.smartcanteen.presentation.main.BgColor
 import com.example.smartcanteen.presentation.main.HeaderBackground
 import com.example.smartcanteen.presentation.main.TextPrimary
 import com.example.smartcanteen.presentation.main.TextSecondary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// 👉 严格按照您提供的最新包名路径导入
+import com.yannuo.library.interfaces.IdCardListener
+import com.yannuo.library.interfaces.QrCodeListener
+import com.yannuo.library.idCardHelper.IdUsbCardHelper
+import com.yannuo.library.qrCodeHelper.QrCodeHelper
+
+import com.dk.DKCloudID.IDCardData
+import com.yannuo.library.idCardHelper.IdUartCardHelper
+import com.yannuo.library.interfaces.SerialPortListener
+import com.yannuo.library.serialPortHelper.SerialPortHelper
+import com.yannuo.library.utils.LogUtil
+import kotlinx.coroutines.android.asCoroutineDispatcher
 
 // --- 支付状态枚举 ---
 enum class PaymentUiState {
@@ -43,11 +60,17 @@ enum class PaymentUiState {
 fun PaymentScreen(
     balanceText: String = "0.00",
     paymentState: PaymentUiState = PaymentUiState.IDLE,
-    onConfirmPay: (amountFen: Long, payMethod: String) -> Unit = { _, _ -> },
+    // 👉 增加 authCode 参数，用于将硬件读到的卡号/二维码传给外部的 ViewModel
+    onConfirmPay: (amountFen: Long, payMethod: String, authCode: String) -> Unit = { _, _, _ -> },
     onBalanceClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
     onResetPaymentState: () -> Unit = {}
 ) {
+    // 获取上下文，用于传递给 SDK
+    val context = LocalContext.current
+    // 获取协程作用域，用于 SDK 子线程切回主线程
+    val coroutineScope = rememberCoroutineScope()
+
     var amountText by remember { mutableStateOf("0") }
     val amountFen = remember(amountText) { moneyTextToFenOrNull(amountText) ?: 0L }
 
@@ -282,9 +305,88 @@ fun PaymentScreen(
     // 弹窗层 1：精美定制版 等待刷卡/扫码提示
     // ==========================================
     if (showPaymentPromptDialog) {
+
+
+        DisposableEffect(Unit) {
+            val qrHelper = QrCodeHelper.getInstance()
+            val serialHelper = SerialPortHelper()
+
+            serialHelper.setSerialPort(1)
+
+//            val idCardHelper = IdUartCardHelper.getInstance()
+
+            val handlerThread = android.os.HandlerThread("HardwareThread").apply { start() }
+            val hardwareDispatcher = android.os.Handler(handlerThread.looper).asCoroutineDispatcher()
+
+            // ---- 开启硬件初始化 ----
+            coroutineScope.launch(hardwareDispatcher) {
+                try {
+
+                    qrHelper.setUSBorCOM("/dev/ttyS0", 4800, true)
+                    qrHelper.open(context, object : QrCodeListener {
+                        override fun onQrCodeSuccess() { Log.d("Hardware", "扫码枪打开成功") }
+                        override fun onQrCodeReceived(scanResult: String) {
+                            coroutineScope.launch(Dispatchers.Main) {
+//                                showPaymentPromptDialog = false
+                                onConfirmPay(amountFen, "QR", scanResult)
+                                Log.d("Hardware", "扫码枪收到数据: ${scanResult}")
+                            }
+                        }
+                        override fun onQrCodeFailure(errMsg: String) {
+                            Log.e("Hardware", "扫码枪打开失败: ${errMsg}")
+                        }
+                        override fun onQrCodeException(excMsg: String) {
+                            Log.e("Hardware", "扫码枪打开异常: ${excMsg}")
+                        }
+                    })
+                    delay(200)
+
+                    // 2.  修改：波特率改为 "115200"
+                    serialHelper.openSerialPort("/dev/ttyS2", 9600,  object : SerialPortListener {
+                        override fun onSerialPortSuccess() {
+                            serialHelper.startSerialPort()
+                            serialHelper.send("AA0495FF1476")
+
+                            Log.d("Hardware", "读卡器串口打开成功")
+                        }
+
+
+
+                        override fun onSerialPortException(msg: String) {
+
+                            Log.e("Hardware", "读卡器串口打开失败: ${msg}")
+                        }
+
+                        override fun onSerialPortFailure(msg: String) {
+                            Log.e("Hardware", "读卡器串口打开失败: ${msg}")
+                        }
+
+                        override fun onSerialPortReceived(dataStr: String, data: ByteArray, size: Int) {
+
+                            Log.d("Hardware", "读卡器串口收到数据: ${dataStr}")
+                        }
+                    })
+
+                } catch (e: Exception) {
+                    Log.e("Hardware", "初始化异常: ${e.message}")
+                }
+            }
+
+            onDispose {
+                qrHelper.close() // 虽然没打开，但调用 close 是安全的
+//                idCardHelper.closeIdUartCard()
+                handlerThread.quitSafely()
+//                serialHelper.closeSerialPort()
+                serialHelper.releaseSerialPort()
+
+            }
+        }
+
+
+
+        // --- 弹窗UI部分 ---
         Dialog(
-            onDismissRequest = { }, // 👉 设为空，防止任何默认的关闭行为
-            // 👉 新增属性：禁用点击外部关闭，禁用物理返回键关闭
+            onDismissRequest = { },
             properties = DialogProperties(
                 dismissOnClickOutside = false,
                 dismissOnBackPress = false
@@ -348,7 +450,8 @@ fun PaymentScreen(
                     Button(
                         onClick = {
                             showPaymentPromptDialog = false
-                            onConfirmPay(amountFen, "FACE")
+                            // 👉 人脸支付点击后直接回调，authCode 传空字符串
+                            onConfirmPay(amountFen, "FACE", "")
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -364,9 +467,9 @@ fun PaymentScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // 底部取消按钮 (这是现在唯一能关闭弹窗的方法)
+                    // 底部取消按钮
                     TextButton(
-                        onClick = { showPaymentPromptDialog = false },
+                        onClick = { showPaymentPromptDialog = false }, // 👉 弹窗置为 false，触发 onDispose 释放硬件
                         modifier = Modifier.height(48.dp)
                     ) {
                         Text("取消收款", fontSize = 25.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
@@ -383,7 +486,6 @@ fun PaymentScreen(
         PaymentUiState.PROCESSING -> {
             Dialog(
                 onDismissRequest = { },
-                // 👉 支付中同样严禁点击外部或返回键关闭
                 properties = DialogProperties(
                     dismissOnClickOutside = false,
                     dismissOnBackPress = false
@@ -408,7 +510,6 @@ fun PaymentScreen(
         PaymentUiState.SUCCESS -> {
             AlertDialog(
                 onDismissRequest = { },
-                // 👉 必须点击“完成”才能关闭
                 properties = DialogProperties(
                     dismissOnClickOutside = false,
                     dismissOnBackPress = false
@@ -438,7 +539,6 @@ fun PaymentScreen(
         PaymentUiState.FAILED -> {
             AlertDialog(
                 onDismissRequest = { },
-                // 👉 必须点击“我知道了”才能关闭
                 properties = DialogProperties(
                     dismissOnClickOutside = false,
                     dismissOnBackPress = false
@@ -466,7 +566,7 @@ fun PaymentScreen(
     }
 }
 
-// --- 以下为键盘等辅助组件 (未修改) ---
+// --- 以下为键盘等辅助组件 (未做任何改动，保证您的 UI 不变) ---
 
 @Composable
 private fun CashierKeyboardFill(
@@ -686,9 +786,10 @@ private fun PaymentScreenDemo() {
 
         PaymentScreen(
             paymentState = currentPaymentState,
-            onConfirmPay = { amountFen, method ->
+            // 👉 测试预览函数中也同步修改为 3 个参数
+            onConfirmPay = { amountFen, method, authCode ->
                 currentPaymentState = PaymentUiState.PROCESSING
-                println("发起支付请求: 金额=$amountFen, 方式=$method")
+                println("发起支付请求: 金额=$amountFen, 方式=$method, 凭证=$authCode")
 
                 coroutineScope.launch {
                     delay(2000)
