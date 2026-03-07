@@ -78,9 +78,23 @@ dependencies {
     
     // FastJSON - 工行 SDK 强依赖
     implementation("com.alibaba:fastjson:1.2.83")
-
+//
     // 加载 libs 目录下的本地 jar 包
-    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar", "*.aar"))))
+
+// 必须手动添加这些依赖，否则 YNLibrary 无法运行
+    implementation("androidx.camera:camera-core:1.3.0")
+    implementation("androidx.camera:camera-camera2:1.3.0")
+    implementation("androidx.camera:camera-lifecycle:1.3.0")
+    implementation("androidx.camera:camera-view:1.3.0")
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("io.github.yannuo-lm:FacePassAndroidSDK-year-release:3.14.5")
+    implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+    implementation("org.eclipse.paho:org.eclipse.paho.android.service:1.1.1")
+
+//
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
