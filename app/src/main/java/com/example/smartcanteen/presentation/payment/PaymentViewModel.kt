@@ -30,7 +30,6 @@ class PaymentViewModel @Inject constructor() : ViewModel() {
         
         viewModelScope.launch {
             try {
-                // TODO: 在这里调用实际的 API
                 delay(1500)
                 uiState = PaymentUiState.SUCCESS
             } catch (e: Exception) {

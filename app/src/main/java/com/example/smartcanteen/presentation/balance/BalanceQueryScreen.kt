@@ -1,5 +1,6 @@
 package com.example.smartcanteen.presentation.balance
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,32 +17,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.smartcanteen.presentation.main.BgColor
 import com.example.smartcanteen.presentation.main.HeaderBackground
+import com.yannuo.library.interfaces.QrCodeListener
+import com.yannuo.library.interfaces.SerialPortListener
+import com.yannuo.library.qrCodeHelper.QrCodeHelper
+import com.yannuo.library.serialPortHelper.SerialPortHelper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.android.asCoroutineDispatcher
+import kotlinx.coroutines.launch
 
-// --- 颜色常量 ---
 private val TextPrimary = Color(0xFF333333)
 private val TextSecondary = Color(0xFF888888)
 private val BrandBlue = Color(0xFF3B82F6)
 
-// --- 数据模型 ---
 data class BalanceResult(
-    val deptName: String,
-    val rgAccName: String,
-    val eBalance: String,
-    val pBalance: String,
-    val sBalance: String
+    val deptName: String, // 部门名称
+    val rgAccName: String, // 员工名称
+    val eBalance: String, // 电子余额
+    val pBalance: String, // 部门余额
+    val sBalance: String // 个人余额
 )
 
 data class TransactionLog(
-    val orderId: String,
-    val dwTranAmt: String,
-    val transDate: String,
-    val orderStatus: String
+    val orderId: String, // 订单编号
+    val dwTranAmt: String, // 金额
+    val transDate: String, // 交易时间
+    val orderStatus: String // 订单状态
 )
 
 @Composable
@@ -53,11 +60,80 @@ fun BalanceQueryScreen(
     onQueryClick: (cardType: String) -> Unit = {},
     onRefundClick: (orderId: String) -> Unit = {}
 ) {
-    // 选中的验证方式 (0:卡片序列号, 20:二维码, 21:人脸)
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var selectedCardType by remember { mutableStateOf("0") }
 
-    // 👉 控制提示弹窗显示/隐藏的状态
     var showPromptDialog by remember { mutableStateOf(false) }
+
+
+    if (showPromptDialog) {
+        DisposableEffect(Unit) {
+            val qrHelper = QrCodeHelper.getInstance()
+            val serialHelper = SerialPortHelper()
+            serialHelper.setSerialPort(1)
+
+            val handlerThread = android.os.HandlerThread("HardwareThread").apply { start() }
+            val hardwareDispatcher = android.os.Handler(handlerThread.looper).asCoroutineDispatcher()
+
+            coroutineScope.launch(hardwareDispatcher) {
+                try {
+                    when (selectedCardType) {
+                        "20" -> {
+                            qrHelper.setUSBorCOM("/dev/ttyS0", 4800, true)
+                            qrHelper.open(context, object : QrCodeListener {
+                                override fun onQrCodeSuccess() { Log.d("Hardware", "扫码枪打开成功") }
+                                override fun onQrCodeReceived(scanResult: String) {
+                                    coroutineScope.launch(Dispatchers.Main) {
+                                        onQueryClick(scanResult) // 执行查询
+                                        Log.d("Hardware", "扫码成功: ${scanResult}")
+                                    }
+                                }
+                                override fun onQrCodeFailure(errMsg: String) {}
+                                override fun onQrCodeException(excMsg: String) {}
+                            })
+                        }
+                        "0" -> {
+                            serialHelper.openSerialPort("/dev/ttyS2", 9600, object :
+                                SerialPortListener {
+                                override fun onSerialPortSuccess() {
+                                    serialHelper.startSerialPort()
+                                    Log.d("Hardware", "读卡器就绪")
+                                }
+                                override fun onSerialPortReceived(dataStr: String, data: ByteArray, size: Int) {
+                                    coroutineScope.launch(Dispatchers.Main) {
+//                                        showPromptDialog = false
+                                        onQueryClick(dataStr) // 执行查询
+                                        Log.d("Hardware", "读卡成功: ${dataStr}")
+                                    }
+                                }
+                                override fun onSerialPortException(msg: String) {
+                                    Log.e("Hardware", "读卡异常: ${msg}")
+                                }
+                                override fun onSerialPortFailure(msg: String) {
+                                    Log.e("Hardware", "读卡失败: ${msg}")
+                                }
+                            })
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("Hardware", "初始化异常: ${e.message}")
+                }
+            }
+
+            onDispose {
+                qrHelper.close()
+                serialHelper.releaseSerialPort()
+                handlerThread.quitSafely()
+            }
+        }
+    }
+
+
+
+    
 
     Box(
         modifier = Modifier
@@ -71,7 +147,6 @@ fun BalanceQueryScreen(
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // 头部标题栏
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -98,7 +173,6 @@ fun BalanceQueryScreen(
                 )
             }
 
-            // 内容主体区域
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -110,13 +184,11 @@ fun BalanceQueryScreen(
                     contentPadding = PaddingValues(start = 56.dp, end = 56.dp, top = 24.dp, bottom = 40.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    // 卡片 1：操作区
                     item {
                         QueryActionCard(
                             selectedCardType = selectedCardType,
                             isQuerying = isQuerying,
                             onTypeChange = { selectedCardType = it },
-                            // 👉 点击立即查询时，先展开弹窗，同时也可以通知外部
                             onQueryClick = {
                                 showPromptDialog = true
                                 onQueryClick(selectedCardType)
@@ -159,7 +231,6 @@ fun BalanceQueryScreen(
         }
     }
 
-    // 👉 修改后的弹窗组件 UI 逻辑 (变为等待提示框)
     if (showPromptDialog) {
         val (dialogTitle, dialogIcon) = when (selectedCardType) {
             "0" -> Pair("请刷卡...", Icons.Rounded.CreditCard)
@@ -184,23 +255,16 @@ fun BalanceQueryScreen(
                 Text(text = dialogTitle, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
             },
             text = {
-                // 增加居中的加载动画
                 Box(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(
-                        color = BrandBlue,
-                        strokeWidth = 4.dp,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    CircularProgressIndicator(color = BrandBlue, strokeWidth = 4.dp, modifier = Modifier.size(48.dp))
                 }
             },
-            confirmButton = {}, // 👉 移除确认按钮
+            confirmButton = {},
             dismissButton = {
-                TextButton(
-                    onClick = { showPromptDialog = false }
-                ) {
+                TextButton(onClick = { showPromptDialog = false }) {
                     Text("取消", fontSize = 18.sp, color = TextSecondary, fontWeight = FontWeight.Bold)
                 }
             }
@@ -208,11 +272,12 @@ fun BalanceQueryScreen(
     }
 }
 
-// --- 组件：空状态提示卡片 ---
 @Composable
 private fun EmptyStateHint(isQuerying: Boolean) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(360.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(360.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
@@ -228,7 +293,10 @@ private fun EmptyStateHint(isQuerying: Boolean) {
                 Text("正在查询账户与消费信息...", fontSize = 22.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
             } else {
                 Box(
-                    modifier = Modifier.size(100.dp).clip(CircleShape).background(BgColor),
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(BgColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Rounded.Search, contentDescription = null, tint = Color(0xFFCCCCCC), modifier = Modifier.size(48.dp))
@@ -244,12 +312,13 @@ private fun EmptyStateHint(isQuerying: Boolean) {
 
 @Composable
 private fun EmptyListHint(message: String) {
-    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
         Text(text = message, fontSize = 20.sp, color = TextSecondary)
     }
 }
 
-// --- 组件：查询操作卡片 ---
 @Composable
 private fun QueryActionCard(
     selectedCardType: String,
@@ -278,7 +347,9 @@ private fun QueryActionCard(
                     val isSelected = selectedCardType == code
                     Surface(
                         onClick = { if (!isQuerying) onTypeChange(code) },
-                        modifier = Modifier.weight(1f).height(64.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(64.dp),
                         shape = RoundedCornerShape(16.dp),
                         color = if (isSelected) BrandBlue.copy(alpha = 0.1f) else BgColor,
                         border = if (isSelected) BorderStroke(2.dp, BrandBlue) else null
@@ -300,7 +371,9 @@ private fun QueryActionCard(
             Button(
                 onClick = onQueryClick,
                 enabled = !isQuerying,
-                modifier = Modifier.fillMaxWidth().height(72.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BrandBlue,
@@ -317,7 +390,6 @@ private fun QueryActionCard(
     }
 }
 
-// --- 组件：余额结果展示卡片 ---
 @Composable
 private fun BalanceResultCard(data: BalanceResult) {
     Card(
@@ -329,7 +401,10 @@ private fun BalanceResultCard(data: BalanceResult) {
         Column(modifier = Modifier.padding(32.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    modifier = Modifier.size(88.dp).clip(RoundedCornerShape(22.dp)).background(BrandBlue),
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(BrandBlue),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(48.dp))
@@ -372,7 +447,6 @@ private fun BalanceResultCard(data: BalanceResult) {
     }
 }
 
-// --- 组件：单条流水记录 ---
 @Composable
 private fun TransactionRecordItem(
     log: TransactionLog,
@@ -392,11 +466,16 @@ private fun TransactionRecordItem(
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Row(
-            modifier = Modifier.padding(32.dp).fillMaxWidth(),
+            modifier = Modifier
+                .padding(32.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(88.dp).clip(RoundedCornerShape(22.dp)).background(iconBgColor),
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(iconBgColor),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Rounded.ReceiptLong, contentDescription = null, tint = Color.White, modifier = Modifier.size(48.dp))
@@ -448,7 +527,6 @@ private fun TransactionRecordItem(
     }
 }
 
-// --- 预览 ---
 @Preview(showBackground = true, device = "spec:width=800px,height=1280px,dpi=160")
 @Composable
 fun BalanceQueryScreenPreview_Empty() {

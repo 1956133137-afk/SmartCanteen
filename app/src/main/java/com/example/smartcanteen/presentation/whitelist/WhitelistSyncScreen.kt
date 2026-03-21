@@ -26,19 +26,18 @@ import com.example.smartcanteen.presentation.main.BgColor
 import com.example.smartcanteen.presentation.main.HeaderBackground
 import com.example.smartcanteen.presentation.main.MainViewModel
 
-// 👉 数据模型定义在这里，供 MainViewModel 引用
 data class WhitelistSummary(
-    val deviceNo: String,
-    val wNLCount: Int,
-    val wLeftCount: Int
+    val deviceNo: String, // 设备编号
+    val wNLCount: Int, // 新增名单数量
+    val wLeftCount: Int // 删除名单数量
 )
 
 data class WhitelistRecord(
-    val studentId: String,
-    val studentName: String,
-    val icCardNo: String,
-    val optType: String,
-    val cardValid: String
+    val studentId: String, // 工号
+    val studentName: String, // 姓名
+    val icCardNo: String, // 卡片编号
+    val optType: String, // 操作类型
+    val cardValid: String // 有效期
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,12 +48,10 @@ fun WhitelistSyncScreen(
 ) {
     val context = LocalContext.current
 
-    // 👉 监听 ViewModel 中暴露的真实数据状态
     val isSyncing by viewModel.isSyncing.collectAsState()
     val summaryData by viewModel.summaryData.collectAsState()
     val records by viewModel.records.collectAsState()
 
-    // 监听 ViewModel 弹出的 Toast 事件
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
@@ -91,7 +88,6 @@ fun WhitelistSyncScreen(
                         if (isSyncing) {
                             CircularProgressIndicator(color = Color.White, strokeWidth = 3.dp, modifier = Modifier.size(28.dp))
                         } else {
-                            // 👉 已经修改为云端下载图标
                             Icon(
                                 imageVector = Icons.Rounded.CloudDownload,
                                 contentDescription = "下载同步",
@@ -105,7 +101,6 @@ fun WhitelistSyncScreen(
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
 
-            // 👉 根据数据状态进行条件渲染
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 56.dp, vertical = 32.dp),
@@ -133,7 +128,6 @@ fun WhitelistSyncScreen(
     }
 }
 
-// --- 组件：空状态提示卡片 ---
 @Composable
 private fun EmptyStateHint(isSyncing: Boolean) {
     Card(

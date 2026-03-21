@@ -26,7 +26,6 @@ object NetworkModule {
         }
 
         return OkHttpClient.Builder()
-            // 移除了 IcbcGatewayInterceptor，不再由拦截器处理加签
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

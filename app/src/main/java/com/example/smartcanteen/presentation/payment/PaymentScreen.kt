@@ -34,18 +34,10 @@ import com.example.smartcanteen.presentation.main.TextSecondary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// 👉 严格按照您提供的最新包名路径导入
-import com.yannuo.library.interfaces.IdCardListener
 import com.yannuo.library.interfaces.QrCodeListener
-import com.yannuo.library.idCardHelper.IdUsbCardHelper
 import com.yannuo.library.qrCodeHelper.QrCodeHelper
-
-import com.dk.DKCloudID.IDCardData
-import com.yannuo.library.idCardHelper.IdUartCardHelper
 import com.yannuo.library.interfaces.SerialPortListener
 import com.yannuo.library.serialPortHelper.SerialPortHelper
-import com.yannuo.library.utils.LogUtil
 import kotlinx.coroutines.android.asCoroutineDispatcher
 
 // --- 支付状态枚举 ---
@@ -60,24 +52,19 @@ enum class PaymentUiState {
 fun PaymentScreen(
     balanceText: String = "0.00",
     paymentState: PaymentUiState = PaymentUiState.IDLE,
-    // 👉 增加 authCode 参数，用于将硬件读到的卡号/二维码传给外部的 ViewModel
     onConfirmPay: (amountFen: Long, payMethod: String, authCode: String) -> Unit = { _, _, _ -> },
     onBalanceClick: () -> Unit = {},
     onMenuItemClick: (String) -> Unit = {},
     onResetPaymentState: () -> Unit = {}
 ) {
-    // 获取上下文，用于传递给 SDK
     val context = LocalContext.current
-    // 获取协程作用域，用于 SDK 子线程切回主线程
     val coroutineScope = rememberCoroutineScope()
 
     var amountText by remember { mutableStateOf("0") }
     val amountFen = remember(amountText) { moneyTextToFenOrNull(amountText) ?: 0L }
 
-    // 控制等待刷卡/扫码提示弹窗的显示
     var showPaymentPromptDialog by remember { mutableStateOf(false) }
 
-    // 联动：当外部检测到刷卡/扫码开始处理时，自动关闭提示弹窗
     LaunchedEffect(paymentState) {
         if (paymentState != PaymentUiState.IDLE) {
             showPaymentPromptDialog = false
@@ -89,7 +76,6 @@ fun PaymentScreen(
             .fillMaxSize()
             .background(BgColor)
     ) {
-        // 1. 顶部渐变背景
         HeaderBackground(height = 330.dp)
 
         Column(
@@ -97,7 +83,6 @@ fun PaymentScreen(
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // 2. 头部标题栏
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,7 +97,6 @@ fun PaymentScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
 
-                // 余额显示区域
                 Surface(
                     onClick = onBalanceClick,
                     color = Color.White.copy(alpha = 0.15f),
@@ -141,7 +125,6 @@ fun PaymentScreen(
 
                 Spacer(modifier = Modifier.width(20.dp))
 
-                // 更多按钮与弹窗菜单
                 var showMenu by remember { mutableStateOf(false) }
                 Box {
                     Surface(
@@ -170,7 +153,6 @@ fun PaymentScreen(
                         }
                     }
 
-                    // 下拉菜单
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false },
@@ -221,7 +203,6 @@ fun PaymentScreen(
 
             Spacer(modifier = Modifier.height(50.dp))
 
-            // 3. 内容主体区域
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -230,7 +211,6 @@ fun PaymentScreen(
                     .background(BgColor)
                     .padding(top = 10.dp, bottom = 55.dp)
             ) {
-                // 金额显示卡片
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -273,7 +253,6 @@ fun PaymentScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // 数字键盘容器
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -301,9 +280,6 @@ fun PaymentScreen(
         }
     }
 
-    // ==========================================
-    // 弹窗层 1：精美定制版 等待刷卡/扫码提示
-    // ==========================================
     if (showPaymentPromptDialog) {
 
 
@@ -313,12 +289,10 @@ fun PaymentScreen(
 
             serialHelper.setSerialPort(1)
 
-//            val idCardHelper = IdUartCardHelper.getInstance()
 
             val handlerThread = android.os.HandlerThread("HardwareThread").apply { start() }
             val hardwareDispatcher = android.os.Handler(handlerThread.looper).asCoroutineDispatcher()
 
-            // ---- 开启硬件初始化 ----
             coroutineScope.launch(hardwareDispatcher) {
                 try {
 
@@ -341,11 +315,9 @@ fun PaymentScreen(
                     })
                     delay(200)
 
-                    // 2.  修改：波特率改为 "115200"
                     serialHelper.openSerialPort("/dev/ttyS2", 9600,  object : SerialPortListener {
                         override fun onSerialPortSuccess() {
                             serialHelper.startSerialPort()
-                            serialHelper.send("AA0495FF1476")
 
                             Log.d("Hardware", "读卡器串口打开成功")
                         }
@@ -373,10 +345,8 @@ fun PaymentScreen(
             }
 
             onDispose {
-                qrHelper.close() // 虽然没打开，但调用 close 是安全的
-//                idCardHelper.closeIdUartCard()
+                qrHelper.close()
                 handlerThread.quitSafely()
-//                serialHelper.closeSerialPort()
                 serialHelper.releaseSerialPort()
 
             }
@@ -384,7 +354,6 @@ fun PaymentScreen(
 
 
 
-        // --- 弹窗UI部分 ---
         Dialog(
             onDismissRequest = { },
             properties = DialogProperties(
@@ -405,7 +374,6 @@ fun PaymentScreen(
                         .padding(32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 标题与金额区
                     Text("请选择支付方式", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                     Spacer(modifier = Modifier.height(32.dp))
                     Text("收款金额", fontSize = 18.sp, color = TextSecondary)
@@ -414,7 +382,6 @@ fun PaymentScreen(
 
                     Spacer(modifier = Modifier.height(40.dp))
 
-                    // 刷卡/扫码 感应区视觉设计
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -437,7 +404,6 @@ fun PaymentScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // "或" 分割线
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                         HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFEEEEEE), thickness = 1.dp)
                         Text(" 或 ", fontSize = 16.sp, color = TextSecondary, modifier = Modifier.padding(horizontal = 16.dp))
@@ -446,11 +412,9 @@ fun PaymentScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 超大号 人脸识别按钮
                     Button(
                         onClick = {
                             showPaymentPromptDialog = false
-                            // 👉 人脸支付点击后直接回调，authCode 传空字符串
                             onConfirmPay(amountFen, "FACE", "")
                         },
                         modifier = Modifier
@@ -467,9 +431,8 @@ fun PaymentScreen(
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    // 底部取消按钮
                     TextButton(
-                        onClick = { showPaymentPromptDialog = false }, // 👉 弹窗置为 false，触发 onDispose 释放硬件
+                        onClick = { showPaymentPromptDialog = false },
                         modifier = Modifier.height(48.dp)
                     ) {
                         Text("取消收款", fontSize = 25.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
@@ -479,9 +442,6 @@ fun PaymentScreen(
         }
     }
 
-    // ==========================================
-    // 弹窗层 2：支付结果回调状态弹窗
-    // ==========================================
     when (paymentState) {
         PaymentUiState.PROCESSING -> {
             Dialog(
@@ -525,7 +485,7 @@ fun PaymentScreen(
                     Button(
                         onClick = {
                             onResetPaymentState()
-                            amountText = "0" // 成功后重置输入金额
+                            amountText = "0"
                         },
                         modifier = Modifier.fillMaxWidth().height(64.dp),
                         shape = RoundedCornerShape(16.dp),
@@ -566,7 +526,7 @@ fun PaymentScreen(
     }
 }
 
-// --- 以下为键盘等辅助组件 (未做任何改动，保证您的 UI 不变) ---
+// 以下为键盘等辅助组件
 
 @Composable
 private fun CashierKeyboardFill(
@@ -774,9 +734,6 @@ private fun fenToMoneyText(fen: Long): String {
     return "${yuan}.${rest.toString().padStart(2, '0')}"
 }
 
-// ==========================================
-// 交互预览与业务逻辑演示
-// ==========================================
 @Preview(showBackground = true, device = "spec:width=800px,height=1280px,dpi=160")
 @Composable
 private fun PaymentScreenDemo() {
@@ -786,7 +743,6 @@ private fun PaymentScreenDemo() {
 
         PaymentScreen(
             paymentState = currentPaymentState,
-            // 👉 测试预览函数中也同步修改为 3 个参数
             onConfirmPay = { amountFen, method, authCode ->
                 currentPaymentState = PaymentUiState.PROCESSING
                 println("发起支付请求: 金额=$amountFen, 方式=$method, 凭证=$authCode")

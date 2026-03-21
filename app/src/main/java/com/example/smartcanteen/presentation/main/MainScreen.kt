@@ -28,12 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
-// --- 1. 数据模型与静态数据 ---
 data class MainMenuItem(
-    val title: String,
-    val subtitle: String,
-    val icon: ImageVector,
-    val iconBgColor: Color
+    val title: String, // 标题
+    val subtitle: String, // 副标题
+    val icon: ImageVector, // 图标
+    val iconBgColor: Color // 背景颜色
 )
 
 val BgColor = Color(0xFFF4F6F9)
@@ -49,21 +48,18 @@ val menuItems = listOf(
     MainMenuItem("人脸采集接口", "第三方提供路径", Icons.Rounded.Face, Color(0xFFFF7043))
 )
 
-// --- 2. 有状态的容器层 (绑定 ViewModel 和 事件处理) ---
 @Composable
 fun MainScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
-    // 监听 ViewModel 弹出的 Toast 事件
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
-    // 调用无状态的纯 UI 层，把点击事件传进去
     MainScreenContent(
         onMenuClick = { title ->
             if (title == "白名单同步") {
@@ -78,18 +74,16 @@ fun MainScreen(
     )
 }
 
-// --- 3. 无状态的纯 UI 层 (完美支持 Preview 预览) ---
 @Composable
 fun MainScreenContent(
-    onMenuClick: (String) -> Unit, // 菜单点击回调
-    onMoreClick: () -> Unit        // 右上角三个点点击回调
+    onMenuClick: (String) -> Unit,
+    onMoreClick: () -> Unit
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BgColor)
     ) {
-        // 1. 蓝色渐变与波浪底纹 - 针对大屏高度
         HeaderBackground(height = 200.dp)
 
         Column(
@@ -97,7 +91,6 @@ fun MainScreenContent(
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // 头部：标题 + 三个点
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,7 +118,6 @@ fun MainScreenContent(
                 }
             }
 
-            // 大圆角底板与列表
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -140,7 +132,7 @@ fun MainScreenContent(
                     items(menuItems) { item ->
                         MenuItemCard(
                             item = item,
-                            onClick = { onMenuClick(item.title) } // 触发上层传下来的回调
+                            onClick = { onMenuClick(item.title) }
                         )
                     }
                 }
@@ -149,7 +141,6 @@ fun MainScreenContent(
     }
 }
 
-// --- 4. 局部组件保持不变 ---
 @Composable
 fun HeaderBackground(height: Dp) {
     val gradientBrush = Brush.verticalGradient(
@@ -229,7 +220,6 @@ fun MenuItemCard(item: MainMenuItem, onClick: () -> Unit) {
     }
 }
 
-// --- 5. 预览层 (只预览无状态的 MainScreenContent) ---
 @Preview(showBackground = true, device = "spec:width=800px,height=1232px,dpi=160")
 @Composable
 fun MainScreenPreview() {

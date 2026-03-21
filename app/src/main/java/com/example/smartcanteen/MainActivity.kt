@@ -17,7 +17,6 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 开启沉浸式全屏，让蓝色头部延伸到状态栏
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
@@ -29,7 +28,6 @@ class MainActivity : ComponentActivity() {
                             onMenuItemClick = { title ->
                                 when (title) {
                                     "白名单同步" -> navController.navigate("whitelist_sync")
-                                    // 其他菜单项逻辑
                                 }
                             },
                             onBalanceClick = { 

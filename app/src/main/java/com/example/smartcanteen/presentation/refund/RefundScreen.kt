@@ -32,15 +32,13 @@ import com.example.smartcanteen.presentation.main.HeaderBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// --- 颜色常量 ---
 private val TextPrimary = Color(0xFF333333)
 private val TextSecondary = Color(0xFF888888)
 private val BrandBlue = Color(0xFF3B82F6)
 
-// --- 数据模型：退款结果 (基于 IcscRefundOrderBackV1 接口) ---
 data class RefundResultData(
     val statusCode: Int,       // 0: 成功, 1: 失败, 2: 退款中
-    val statusMsg: String,
+    val statusMsg: String,     // 退款结果
     val refundId: String,      // 慧餐通退款单号
     val jftAccountNo: String,  // 融e聚子商户编号
     val merchineId: String     // 合作方下单编号
@@ -50,18 +48,13 @@ data class RefundResultData(
 @Composable
 fun RefundScreen(
     onBackClick: () -> Unit = {},
-    // 外部传入的状态
     isProcessing: Boolean = false,
     refundResult: RefundResultData? = null,
-    // 触发退款回调：传入订单号、以及重新验证的支付方式
     onConfirmRefund: (orderId: String, cardType: String) -> Unit = { _, _ -> },
-    // 重置页面以便进行下一笔退款
     onResetState: () -> Unit = {}
 ) {
-    // 表单状态
     var orderId by remember { mutableStateOf("") }
 
-    // 控制安全验证弹窗
     var showVerifyDialog by remember { mutableStateOf(false) }
 
     Box(
@@ -69,7 +62,6 @@ fun RefundScreen(
             .fillMaxSize()
             .background(BgColor)
     ) {
-        // 1. 顶部渐变波浪背景
         HeaderBackground(height = 200.dp)
 
         Column(
@@ -77,7 +69,6 @@ fun RefundScreen(
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // 2. 头部标题栏
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -104,14 +95,12 @@ fun RefundScreen(
                 )
             }
 
-            // 3. 内容主体区域 (使用 LazyColumn 适配键盘弹出和长卡片)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 56.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 if (refundResult == null) {
-                    // --- 状态 A：输入表单 ---
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -137,7 +126,6 @@ fun RefundScreen(
 
                                 Spacer(modifier = Modifier.height(40.dp))
 
-                                // 订单号输入框 (对应接口的 orderId)
                                 OutlinedTextField(
                                     value = orderId,
                                     onValueChange = { orderId = it },
@@ -152,7 +140,6 @@ fun RefundScreen(
 
                                 Spacer(modifier = Modifier.height(48.dp))
 
-                                // 发起退款按钮
                                 Button(
                                     onClick = { showVerifyDialog = true },
                                     enabled = orderId.isNotBlank() && !isProcessing,
@@ -166,7 +153,6 @@ fun RefundScreen(
                         }
                     }
                 } else {
-                    // --- 状态 B：退款结果展示 (白名单卡片风格) ---
                     item {
                         RefundResultCard(resultData = refundResult)
                     }
@@ -174,8 +160,8 @@ fun RefundScreen(
                     item {
                         Button(
                             onClick = {
-                                orderId = "" // 清空输入框
-                                onResetState() // 还原为表单状态
+                                orderId = ""
+                                onResetState()
                             },
                             modifier = Modifier.fillMaxWidth().height(64.dp),
                             shape = RoundedCornerShape(16.dp),
@@ -190,9 +176,6 @@ fun RefundScreen(
         }
     }
 
-    // ==========================================
-    // 弹窗层 1：安全验证弹窗 (要求验证原支付介质)
-    // ==========================================
     if (showVerifyDialog) {
         Dialog(onDismissRequest = { showVerifyDialog = false }) {
             Surface(
@@ -271,9 +254,6 @@ fun RefundScreen(
         }
     }
 
-    // ==========================================
-    // 弹窗层 2：正在处理防误触弹窗
-    // ==========================================
     if (isProcessing) {
         Dialog(
             onDismissRequest = { },
@@ -297,7 +277,6 @@ fun RefundScreen(
     }
 }
 
-// --- 独立UI组件：精美的退款结果展示卡片 (类似白名单数据卡片风格) ---
 @Composable
 private fun RefundResultCard(resultData: RefundResultData) {
     // 0:退款成功, 1:退款失败, 2:退款处理中
@@ -315,7 +294,6 @@ private fun RefundResultCard(resultData: RefundResultData) {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(40.dp)) {
-            // 头部：大圆角色块 + 状态
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
@@ -338,7 +316,6 @@ private fun RefundResultCard(resultData: RefundResultData) {
             HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
             Spacer(modifier = Modifier.height(32.dp))
 
-            // 详情展示 (接口返回的三个关键单号)
             DetailRow(label = "慧餐通退款单号", value = resultData.refundId.ifEmpty { "--" })
             Spacer(modifier = Modifier.height(24.dp))
             DetailRow(label = "子商户编号", value = resultData.jftAccountNo.ifEmpty { "--" })
@@ -360,9 +337,6 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
-// ==========================================
-// 状态驱动演示 (可直接在 Android Studio 预览运行)
-// ==========================================
 @Preview(showBackground = true, device = "spec:width=800px,height=1280px,dpi=160")
 @Composable
 private fun RefundScreenDemo() {
@@ -375,15 +349,12 @@ private fun RefundScreenDemo() {
             isProcessing = isProcessing,
             refundResult = resultData,
             onConfirmRefund = { orderId, cardType ->
-                // 1. 用户验证完毕，进入处理中状态
                 isProcessing = true
 
-                // 2. 模拟网络请求工行网关 (IcscRefundOrderBackV1)
                 scope.launch {
                     delay(2000)
                     isProcessing = false
 
-                    // 3. 模拟接口返回真实数据并展示结果卡片
                     resultData = RefundResultData(
                         statusCode = 0, // 0: 成功
                         statusMsg = "退款处理完成，金额已原路返回",
@@ -394,7 +365,6 @@ private fun RefundScreenDemo() {
                 }
             },
             onResetState = {
-                // 点击继续下一笔时，重置状态回表单
                 resultData = null
             }
         )

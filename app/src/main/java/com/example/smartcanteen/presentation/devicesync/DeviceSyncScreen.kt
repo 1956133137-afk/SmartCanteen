@@ -28,29 +28,26 @@ import com.example.smartcanteen.presentation.main.BgColor
 import com.example.smartcanteen.presentation.main.HeaderBackground
 import com.example.smartcanteen.presentation.main.MainViewModel
 
-// --- 映射接口文档的数据模型 ---
 data class EntranceRecord(
-    val studentId: String,
-    val accessTime: String,
-    val accessFlag: String // "1": 成功, "0": 失败
+    val studentId: String, // 工号
+    val accessTime: String, // 访问时间
+    val accessFlag: String // 访问标记
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceSyncScreen(
     onBackClick: () -> Unit,
-    viewModel: MainViewModel = hiltViewModel() // 此处复用 MainViewModel，或者替换为您专门的 SyncViewModel
+    viewModel: MainViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
-    // 监听 ViewModel 弹出的 Toast 事件
     LaunchedEffect(Unit) {
         viewModel.uiEvent.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
-    // 模拟本地待同步的考勤数据 (基于 IcscSynEntranceV1 接口参数)
     val mockRecords = remember {
         listOf(
             EntranceRecord("234242", "2023-11-30 15:00:00", "1"),
@@ -65,7 +62,6 @@ fun DeviceSyncScreen(
             .fillMaxSize()
             .background(BgColor)
     ) {
-        // 复用白名单页面的沉浸式波浪头部
         HeaderBackground(height = 90.dp)
 
         Column(
@@ -73,7 +69,6 @@ fun DeviceSyncScreen(
                 .fillMaxSize()
                 .systemBarsPadding()
         ) {
-            // 头部导航栏
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -99,13 +94,12 @@ fun DeviceSyncScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            // TODO: 调用 ViewModel 中的同步逻辑 (如 viewModel.syncEntranceRecords())
                             Toast.makeText(context, "正在同步考勤记录...", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(64.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.CloudUpload, // 改为上传云端图标更契合考勤同步
+                            imageVector = Icons.Rounded.CloudUpload,
                             contentDescription = "上传同步",
                             tint = Color.White,
                             modifier = Modifier.size(40.dp)
@@ -118,13 +112,11 @@ fun DeviceSyncScreen(
                 modifier = Modifier.padding(horizontal = 24.dp)
             )
 
-            // 内容列表区
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 56.dp, vertical = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // 1. 设备基础信息卡片 (映射 appId, deviceNo, schoolId)
                 item {
                     DeviceSummaryCard(
                         deviceNo = "B20231226",
@@ -133,7 +125,6 @@ fun DeviceSyncScreen(
                     )
                 }
 
-                // 2. 列表标题
                 item {
                     Text(
                         text = "待同步本地出入记录",
@@ -144,7 +135,6 @@ fun DeviceSyncScreen(
                     )
                 }
 
-                // 3. 考勤记录列表 (映射 studentId, accessTime, accessFlag)
                 items(mockRecords) { record ->
                     EntranceRecordItem(record)
                 }
@@ -153,7 +143,6 @@ fun DeviceSyncScreen(
     }
 }
 
-// --- 组件：设备概览卡片 ---
 @Composable
 private fun DeviceSummaryCard(deviceNo: String, schoolId: String, unsyncedCount: Int) {
     Card(
@@ -187,7 +176,6 @@ private fun DeviceSummaryCard(deviceNo: String, schoolId: String, unsyncedCount:
     }
 }
 
-// --- 组件：单条考勤记录 ---
 @Composable
 private fun EntranceRecordItem(record: EntranceRecord) {
     val isSuccess = record.accessFlag == "1"
@@ -205,7 +193,6 @@ private fun EntranceRecordItem(record: EntranceRecord) {
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 图标
             Box(
                 modifier = Modifier.size(56.dp).clip(CircleShape).background(bgColor),
                 contentAlignment = Alignment.Center
@@ -220,14 +207,12 @@ private fun EntranceRecordItem(record: EntranceRecord) {
 
             Spacer(modifier = Modifier.width(20.dp))
 
-            // 信息区
             Column(modifier = Modifier.weight(1f)) {
                 Text("学号 / 职工号: ${record.studentId}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF333333))
                 Spacer(modifier = Modifier.height(6.dp))
                 Text("通行时间: ${record.accessTime}", fontSize = 16.sp, color = Color(0xFF888888))
             }
 
-            // 状态标签
             Surface(
                 color = bgColor,
                 shape = RoundedCornerShape(8.dp)

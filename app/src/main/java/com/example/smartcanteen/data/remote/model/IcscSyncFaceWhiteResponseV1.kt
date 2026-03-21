@@ -17,7 +17,6 @@ class IcscSyncFaceWhiteResponseV1 : IcbcResponse() {
     @JSONField(name = "wNLContent")
     var wNLContent: List<WhiteListContentBean>? = null
 
-    // 👉 必须新增这个内部类，Fastjson 才能把数组里的 JSON 解析成对象，ViewModel 才能点出字段
     class WhiteListContentBean {
         @JSONField(name = "optType") var optType: String? = null
         @JSONField(name = "resetWhiteList") var resetWhiteList: String? = null
